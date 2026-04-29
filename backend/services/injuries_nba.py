@@ -18,7 +18,7 @@ import pdfplumber
 from sqlalchemy.orm import Session
 
 from models import Player, Team
-from utils import normalize_name
+from services.utils import normalize_name
 
 
 NBA_INJURY_PAGE_URL = "https://official.nba.com/nba-injury-report-2025-26-season/"
