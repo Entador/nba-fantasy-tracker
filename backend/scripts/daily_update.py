@@ -265,11 +265,30 @@ def update_game_statuses(db: Session, dry_run: bool = False) -> int:
             if not dry_run:
                 db.commit()
 
+    # Delete scheduled playoff/play-in games no longer in the NBA schedule
+    # (e.g. cancelled "Game 5" when a series ends early)
+    scheduled_playoff_games = (
+        db.query(Game)
+        .filter(Game.status == "scheduled")
+        .filter(Game.nba_game_id.like("004%") | Game.nba_game_id.like("005%"))
+        .all()
+    )
+    cancelled_count = 0
+    for game in scheduled_playoff_games:
+        if game.nba_game_id not in schedule_data:
+            print(f"  [cancelled] {game.nba_game_id} ({game.game_date}) - no longer in NBA schedule")
+            if not dry_run:
+                db.delete(game)
+            cancelled_count += 1
+
+    if not dry_run and cancelled_count:
+        db.commit()
+
     # Summary
     final_count = db.query(Game).filter(Game.status == "final").count()
     scheduled_count = db.query(Game).filter(Game.status == "scheduled").count()
 
-    print(f"\nUpdated: {updated_count}, Playoff games added: {playoff_added}")
+    print(f"\nUpdated: {updated_count}, Playoff games added: {playoff_added}, Cancelled removed: {cancelled_count}")
     print(f"Total in DB: {final_count} final, {scheduled_count} scheduled")
 
     return updated_count
