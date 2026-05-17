@@ -6,8 +6,8 @@ from services.cache import app_cache
 from models.database import SessionLocal, get_db
 
 app = FastAPI(
-    title="TTFL Tracker API",
-    description="API for tracking TTFL (TrashTalk Fantasy League) player picks",
+    title="NBA Fantasy Tracker API",
+    description="API for tracking Fantasy (NBA Fantasy) player picks",
     version="1.0.0"
 )
 
@@ -43,7 +43,7 @@ app.include_router(snapshot.router, prefix="/api", tags=["snapshot"])
 @app.get("/")
 def read_root():
     """Health check endpoint"""
-    return {"status": "ok", "message": "TTFL Tracker API is running"}
+    return {"status": "ok", "message": "NBA Fantasy Tracker API is running"}
 
 
 @app.get("/health")

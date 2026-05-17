@@ -1,11 +1,11 @@
 """
-Database population script for TTFL Tracker.
+Database population script for NBA Fantasy Tracker.
 
 Fetches NBA data and populates the database with:
 - All 30 NBA teams
 - Player rosters for each team
 - Games for the current season
-- TTFL scores for each player/game
+- Fantasy scores for each player/game
 
 Usage:
     poetry run python scripts/populate_db.py
@@ -14,7 +14,7 @@ Options:
     --teams-only     Only populate teams
     --rosters-only   Only populate player rosters
     --games-only     Only populate games (no stats)
-    --stats-only     Only populate TTFL scores for existing games
+    --stats-only     Only populate Fantasy scores for existing games
     --from-date      Start date for games (YYYY-MM-DD)
     --to-date        End date for games (YYYY-MM-DD)
 """
@@ -276,7 +276,7 @@ def populate_games(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Populate TTFL database")
+    parser = argparse.ArgumentParser(description="Populate Fantasy database")
     parser.add_argument("--teams-only", action="store_true", help="Only populate teams")
     parser.add_argument("--rosters-only", action="store_true", help="Only populate rosters")
     parser.add_argument("--games-only", action="store_true", help="Only populate games (schedule + scores)")
@@ -292,7 +292,7 @@ def main():
     run_all = not any([args.teams_only, args.rosters_only, args.games_only])
 
     print("=" * 50)
-    print("TTFL Database Population Script")
+    print("Fantasy Database Population Script")
     print("=" * 50)
 
     # Ensure tables exist

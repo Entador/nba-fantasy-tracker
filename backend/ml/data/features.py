@@ -1,5 +1,5 @@
 """
-Feature engineering for TTFL score prediction.
+Feature engineering for Fantasy score prediction.
 
 Pulls historical data from the database and builds a feature matrix
 where each row represents one player-game instance.
@@ -10,7 +10,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy import case, and_
 
-from models import Player, Game, TTFLScore, Team
+from models import Player, Game, FantasyScore, Team
 
 
 def build_feature_matrix(db: Session) -> pd.DataFrame:
@@ -19,17 +19,17 @@ def build_feature_matrix(db: Session) -> pd.DataFrame:
 
     Returns a DataFrame with one row per (player, game) with:
     - Features known before tipoff (rolling averages, opponent stats, context)
-    - Target: ttfl_score
+    - Target: fantasy_score
     """
     from sqlalchemy.orm import aliased
     OppTeam = aliased(Team)
 
     rows = (
         db.query(
-            TTFLScore.player_id,
-            TTFLScore.game_id,
-            TTFLScore.ttfl_score,
-            TTFLScore.minutes,
+            FantasyScore.player_id,
+            FantasyScore.game_id,
+            FantasyScore.fantasy_score,
+            FantasyScore.minutes,
             Game.game_date,
             Game.home_team_id,
             Game.away_team_id,
@@ -40,8 +40,8 @@ def build_feature_matrix(db: Session) -> pd.DataFrame:
             OppTeam.opp_rpg,
             OppTeam.opp_apg,
         )
-        .join(Game, TTFLScore.game_id == Game.id)
-        .join(Player, TTFLScore.player_id == Player.id)
+        .join(Game, FantasyScore.game_id == Game.id)
+        .join(Player, FantasyScore.player_id == Player.id)
         .join(
             OppTeam,
             OppTeam.id == case(
@@ -50,9 +50,9 @@ def build_feature_matrix(db: Session) -> pd.DataFrame:
             ),
         )
         .filter(
-            TTFLScore.ttfl_score.isnot(None),
-            TTFLScore.minutes.isnot(None),
-            TTFLScore.minutes > 0,
+            FantasyScore.fantasy_score.isnot(None),
+            FantasyScore.minutes.isnot(None),
+            FantasyScore.minutes > 0,
         )
         .order_by(Player.id, Game.game_date)
         .all()
@@ -62,7 +62,7 @@ def build_feature_matrix(db: Session) -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.DataFrame(rows, columns=[
-        "player_id", "game_id", "ttfl_score", "minutes", "game_date",
+        "player_id", "game_id", "fantasy_score", "minutes", "game_date",
         "home_team_id", "away_team_id", "player_team_id",
         "opp_def_rating", "opp_pace", "opp_ppg", "opp_rpg", "opp_apg",
     ])
@@ -85,29 +85,29 @@ def build_feature_matrix(db: Session) -> pd.DataFrame:
 
     # Intermediate averages (used for trend/delta computation, not kept as features)
     avg_last_5 = (
-        df.groupby("player_id")["ttfl_score"]
+        df.groupby("player_id")["fantasy_score"]
         .transform(lambda s: s.shift(1).rolling(5, min_periods=1).mean())
     )
     avg_last_10 = (
-        df.groupby("player_id")["ttfl_score"]
+        df.groupby("player_id")["fantasy_score"]
         .transform(lambda s: s.shift(1).rolling(10, min_periods=1).mean())
     )
     avg_season = (
-        df.groupby("player_id")["ttfl_score"]
+        df.groupby("player_id")["fantasy_score"]
         .transform(lambda s: s.shift(1).expanding(min_periods=1).mean())
     )
 
     # Trend: how much is recent form deviating from season baseline
-    df["ttfl_trend_5"] = avg_last_5 - avg_season
-    df["ttfl_trend_10"] = avg_last_10 - avg_season
+    df["fantasy_trend_5"] = avg_last_5 - avg_season
+    df["fantasy_trend_10"] = avg_last_10 - avg_season
 
     # Std: player volatility over last 5 and 10 games
-    df["std_ttfl_last_5"] = (
-        df.groupby("player_id")["ttfl_score"]
+    df["std_fantasy_last_5"] = (
+        df.groupby("player_id")["fantasy_score"]
         .transform(lambda s: s.shift(1).rolling(5, min_periods=2).std())
     )
-    df["std_ttfl_last_10"] = (
-        df.groupby("player_id")["ttfl_score"]
+    df["std_fantasy_last_10"] = (
+        df.groupby("player_id")["fantasy_score"]
         .transform(lambda s: s.shift(1).rolling(10, min_periods=2).std())
     )
 
@@ -118,7 +118,7 @@ def build_feature_matrix(db: Session) -> pd.DataFrame:
     )
 
     # Keep avg_season only for computing the target
-    df["avg_ttfl_season"] = avg_season
+    df["avg_fantasy_season"] = avg_season
 
     # Games played in the last 10 days (schedule density / fatigue indicator)
     # closed="left" gives window [t-10D, t): excludes current game, no leakage
@@ -131,14 +131,14 @@ def build_feature_matrix(db: Session) -> pd.DataFrame:
 
     df["games_last_10d"] = df.groupby("player_id", group_keys=False).apply(_count_games_last_10d)
 
-    df = df.dropna(subset=["ttfl_trend_5", "ttfl_trend_10", "std_ttfl_last_5", "std_ttfl_last_10"])
+    df = df.dropna(subset=["fantasy_trend_5", "fantasy_trend_10", "std_fantasy_last_5", "std_fantasy_last_10"])
 
     # Drop first 10 games per player — rolling features are unreliable on small samples
     df["game_number"] = df.groupby("player_id").cumcount() + 1
     df = df[df["game_number"] > 10].drop(columns=["game_number"])
 
     # Target: deviation from the player's season average
-    df["ttfl_delta"] = df["ttfl_score"] - df["avg_ttfl_season"]
+    df["fantasy_delta"] = df["fantasy_score"] - df["avg_fantasy_season"]
 
     return df
 
@@ -179,19 +179,19 @@ def build_today_features(db: Session, date: datetime.date) -> pd.DataFrame:
     # --- Historical scores per player (all games strictly before date) ---
     history_rows = (
         db.query(
-            TTFLScore.player_id,
-            TTFLScore.ttfl_score,
-            TTFLScore.minutes,
+            FantasyScore.player_id,
+            FantasyScore.fantasy_score,
+            FantasyScore.minutes,
             Game.game_date,
         )
-        .join(Game, TTFLScore.game_id == Game.id)
+        .join(Game, FantasyScore.game_id == Game.id)
         .filter(
-            TTFLScore.player_id.in_([p.id for p in players]),
-            TTFLScore.ttfl_score.isnot(None),
-            TTFLScore.minutes > 0,
+            FantasyScore.player_id.in_([p.id for p in players]),
+            FantasyScore.fantasy_score.isnot(None),
+            FantasyScore.minutes > 0,
             Game.game_date < date,
         )
-        .order_by(TTFLScore.player_id, Game.game_date)
+        .order_by(FantasyScore.player_id, Game.game_date)
         .all()
     )
 
@@ -199,7 +199,7 @@ def build_today_features(db: Session, date: datetime.date) -> pd.DataFrame:
     from collections import defaultdict
     history: dict[int, list[tuple]] = defaultdict(list)  # player_id -> [(date, score, minutes)]
     for row in history_rows:
-        history[row.player_id].append((row.game_date, row.ttfl_score, row.minutes))
+        history[row.player_id].append((row.game_date, row.fantasy_score, row.minutes))
 
     # --- Assemble feature rows ---
     rows = []
@@ -216,8 +216,8 @@ def build_today_features(db: Session, date: datetime.date) -> pd.DataFrame:
         avg_last_10 = sum(scores[-10:]) / len(scores[-10:])
         avg_season = sum(scores) / len(scores)
 
-        ttfl_trend_5 = avg_last_5 - avg_season
-        ttfl_trend_10 = avg_last_10 - avg_season
+        fantasy_trend_5 = avg_last_5 - avg_season
+        fantasy_trend_10 = avg_last_10 - avg_season
         avg_minutes_last_5 = sum(minutes[-5:]) / len(minutes[-5:])
 
         def _std(vals):
@@ -248,11 +248,11 @@ def build_today_features(db: Session, date: datetime.date) -> pd.DataFrame:
             "opponent": opp.abbreviation,
             "is_home": is_home,
             "is_back_to_back": int(player.team_id in b2b_team_ids),
-            "avg_ttfl_season": avg_season,
-            "ttfl_trend_5": ttfl_trend_5,
-            "ttfl_trend_10": ttfl_trend_10,
-            "std_ttfl_last_5": std_last_5,
-            "std_ttfl_last_10": std_last_10,
+            "avg_fantasy_season": avg_season,
+            "fantasy_trend_5": fantasy_trend_5,
+            "fantasy_trend_10": fantasy_trend_10,
+            "std_fantasy_last_5": std_last_5,
+            "std_fantasy_last_10": std_last_10,
             "avg_minutes_last_5": avg_minutes_last_5,
             "games_last_10d": games_last_10d,
             "opp_def_rating": opp.def_rating,

@@ -1,21 +1,21 @@
-# TTFL Tracker
+# NBA Fantasy Tracker
 
-A web app to optimize daily player picks for TTFL (TrashTalk Fantasy League), a French NBA fantasy game where you pick one player per night and earn points based on their performance.
+A web app to optimize daily player picks for Fantasy (NBA Fantasy), a French NBA fantasy game where you pick one player per night and earn points based on their performance.
 
 ## The Game
 
 - Pick one NBA player per night
-- Score = player's TTFL score (calculated from box score stats)
+- Score = player's Fantasy score (calculated from box score stats)
 - **30-day rule**: Cannot pick the same player twice within 30 days
 - Goal: Maximize total points over the season
 
-### TTFL Score Formula
+### Fantasy Score Formula
 
 ```
 POSITIVE: PTS + REB + AST + STL + BLK + FGM + 3PM + FTM
 NEGATIVE: TOV + FG_missed + 3P_missed + FT_missed
 
-TTFL_SCORE = POSITIVE - NEGATIVE
+FANTASY_SCORE = POSITIVE - NEGATIVE
 ```
 
 ---
@@ -63,13 +63,13 @@ The app uses a **fetch-once, filter-client-side** pattern for instant navigation
 1. On page load, frontend makes a single `GET /api/snapshot` call (~30 KB JSON)
 2. The snapshot contains the entire season's games, teams, and players
 3. Date navigation filters cached data in-browser — no additional API calls
-4. Backend serves from an **in-memory cache** (loaded on startup) + database for TTFL averages
+4. Backend serves from an **in-memory cache** (loaded on startup) + database for Fantasy averages
 5. Pick management uses `localStorage`; eligibility is calculated client-side
 
 ### Daily Update Cycle (GitHub Actions)
 
 1. `daily_update.py` fetches game results and box scores from NBA API
-2. Calculates TTFL scores and updates the database
+2. Calculates Fantasy scores and updates the database
 3. Also refreshes team stats (defensive rating, pace) and injury reports (ESPN)
 4. Backend cache is refreshed by redeploying after the update
 
@@ -78,7 +78,7 @@ The app uses a **fetch-once, filter-client-side** pattern for instant navigation
 ## Project Structure
 
 ```
-ttfl-tracker/
+nba-fantasy-tracker/
 ├── frontend/
 │   ├── app/
 │   │   ├── page.tsx              # Dashboard with date navigation
@@ -101,12 +101,12 @@ ttfl-tracker/
     │   └── games.py               # /api/games/* endpoints
     ├── services/
     │   ├── cache.py               # In-memory cache (loaded on startup)
-    │   ├── ttfl.py                # TTFL score calculation
+    │   ├── fantasy.py                # Fantasy score calculation
     │   ├── nba_api.py             # NBA API wrapper (used by scripts)
     │   └── injuries.py            # ESPN injury data
     ├── models/
     │   ├── database.py            # SQLAlchemy engine, SessionLocal, get_db()
-    │   └── __init__.py            # Player, Game, Team, TTFLScore models
+    │   └── __init__.py            # Player, Game, Team, FantasyScore models
     └── scripts/
         ├── daily_update.py        # Automated DB updates (GitHub Actions)
         ├── populate_db.py         # Initial data population
@@ -120,7 +120,7 @@ ttfl-tracker/
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/snapshot` | Full season data for client-side filtering (primary endpoint) |
-| `GET` | `/api/players/tonight` | Tonight's players with eligibility and avg TTFL |
+| `GET` | `/api/players/tonight` | Tonight's players with eligibility and avg Fantasy |
 | `GET` | `/api/players/{id}/stats` | Recent game history for a player |
 | `POST` | `/api/games/pick` | Record a pick |
 | `GET` | `/api/games/history` | User's pick history |
@@ -148,7 +148,7 @@ ttfl-tracker/
 | opponent | VARCHAR(3) | Opponent team abbreviation |
 | is_home | BOOLEAN | Home or away |
 | is_back2back | BOOLEAN | Second game in consecutive days |
-| ttfl_score | INTEGER | Calculated TTFL score (null if scheduled) |
+| fantasy_score | INTEGER | Calculated Fantasy score (null if scheduled) |
 | picked | BOOLEAN | Whether user picked this player |
 
 ### Eligibility Query
@@ -211,11 +211,11 @@ poetry run python scripts/daily_update.py --dry-run
 **Why snapshot architecture?**
 Single API call on load (~30 KB) enables instant date navigation without per-request API calls. Trades slightly larger initial payload for a much snappier UX.
 
-**Why store only TTFL score, not raw stats?**
+**Why store only Fantasy score, not raw stats?**
 Simpler data model. Raw stats are available via NBA API if the formula ever changes.
 
 **Why separate frontend/backend?**
 Python backend is better suited for data work and future ML features. FastAPI is async and industry-standard.
 
-**Why not scrape TTFL site for pick history?**
+**Why not scrape Fantasy site for pick history?**
 Requires credential storage, is fragile to HTML changes, and may be against ToS. Manual pick logging (one click/day) is simpler and more reliable.

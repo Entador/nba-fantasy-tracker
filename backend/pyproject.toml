@@ -1,7 +1,7 @@
 [project]
-name = "ttfl-tracker-backend"
+name = "nba-fantasy-tracker-backend"
 version = "0.1.0"
-description = "Backend API for TTFL player tracking"
+description = "Backend API for Fantasy player tracking"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
@@ -21,9 +21,9 @@ dependencies = [
 ]
 
 [tool.poetry]
-name = "ttfl-tracker-backend"
+name = "nba-fantasy-tracker-backend"
 version = "0.1.0"
-description = "Backend API for TTFL player tracking"
+description = "Backend API for Fantasy player tracking"
 authors = ["Thomas"]
 package-mode = false
 

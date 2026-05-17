@@ -114,7 +114,7 @@ export default function PlayerDetailPage() {
   const avgPicked =
     gamesWhenPicked.length > 0
       ? (
-          gamesWhenPicked.reduce((sum, g) => sum + g.ttfl_score, 0) /
+          gamesWhenPicked.reduce((sum, g) => sum + g.fantasy_score, 0) /
           gamesWhenPicked.length
         ).toFixed(1)
       : "0.0";
@@ -174,12 +174,12 @@ export default function PlayerDetailPage() {
               <div className="p-1 sm:p-1.5 rounded-lg bg-primary/10">
                 <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
               </div>
-              Average TTFL
+              Average Fantasy
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-3 sm:pb-4 px-3 sm:px-6">
             <div className="text-2xl sm:text-3xl font-black bg-linear-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-              {data.avg_ttfl.toFixed(1)}
+              {data.avg_fantasy.toFixed(1)}
             </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 font-medium">
               Last {playedGames.length} games played
@@ -263,7 +263,7 @@ export default function PlayerDetailPage() {
                   <TableHead className="h-8 py-1">Date</TableHead>
                   <TableHead className="h-8 py-1">Matchup</TableHead>
                   <TableHead className="text-right h-8 py-1">
-                    TTFL Score
+                    Fantasy Score
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -286,7 +286,7 @@ export default function PlayerDetailPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right py-1.5">
-                      <ScoreBadge score={game.ttfl_score} dnp={game.dnp} />
+                      <ScoreBadge score={game.fantasy_score} dnp={game.dnp} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -301,11 +301,11 @@ export default function PlayerDetailPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Score Trend</CardTitle>
               <CardDescription className="text-sm">
-                Average: {data.avg_ttfl.toFixed(1)} pts
+                Average: {data.avg_fantasy.toFixed(1)} pts
               </CardDescription>
             </CardHeader>
             <CardContent className="pb-4">
-              <ScoreChart games={playedGames} avgScore={data.avg_ttfl} />
+              <ScoreChart games={playedGames} avgScore={data.avg_fantasy} />
             </CardContent>
           </Card>
 
@@ -321,9 +321,9 @@ export default function PlayerDetailPage() {
                 <div>
                   <p className="font-medium text-sm">Average Performance</p>
                   <p className="text-sm text-muted-foreground">
-                    {data.avg_ttfl >= 45
+                    {data.avg_fantasy >= 45
                       ? "Elite player with consistently high scores"
-                      : data.avg_ttfl >= 35
+                      : data.avg_fantasy >= 35
                         ? "Solid performer with good scoring potential"
                         : "Developing player with room for improvement"}
                   </p>

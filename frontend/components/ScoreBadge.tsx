@@ -7,7 +7,7 @@ interface ScoreBadgeProps {
 }
 
 /**
- * TTFL Score color thresholds:
+ * Fantasy Score color thresholds:
  * - < 10: Soft slate (very low)
  * - 10-20: Soft blue (low)
  * - 20-30: Soft yellow (below average)

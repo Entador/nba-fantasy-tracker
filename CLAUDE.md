@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-TTFL Tracker is a web app to optimize daily player picks for TTFL (TrashTalk Fantasy League), a French NBA fantasy game. Users pick one NBA player per night and earn points based on their performance. The 30-day rule prevents picking the same player twice within 30 days.
+NBA Fantasy Tracker is a web app to optimize daily player picks for Fantasy (NBA Fantasy), a French NBA fantasy game. Users pick one NBA player per night and earn points based on their performance. The 30-day rule prevents picking the same player twice within 30 days.
 
-**TTFL Score Formula:**
+**Fantasy Score Formula:**
 ```
 POSITIVE: PTS + REB + AST + STL + BLK + FGM + 3PM + FTM
 NEGATIVE: TOV + FG_missed + 3P_missed + FT_missed
-TTFL_SCORE = POSITIVE - NEGATIVE
+FANTASY_SCORE = POSITIVE - NEGATIVE
 ```
 
 ## Tech Stack
@@ -75,12 +75,12 @@ backend/
 ├── app.py                  # FastAPI app, CORS config, router registration
 ├── models/
 │   ├── database.py         # SQLAlchemy engine, SessionLocal, get_db()
-│   └── __init__.py         # Player, Game, Team, TTFLScore models
+│   └── __init__.py         # Player, Game, Team, FantasyScore models
 ├── routers/
 │   ├── players.py          # GET /api/players/tonight, GET /api/players/{id}/stats
 │   └── games.py            # POST /api/games/pick, GET /api/games/history
 ├── services/
-│   ├── ttfl.py             # calculate_ttfl_score(), calculate_average_ttfl_score()
+│   ├── fantasy.py             # calculate_fantasy_score(), calculate_average_fantasy_score()
 │   ├── nba_api.py          # NBA API wrapper functions (used by scripts)
 │   └── injuries.py         # Fetch injury data from ESPN
 └── scripts/
@@ -91,7 +91,7 @@ backend/
 
 **Key API Endpoints:**
 - `GET /api/snapshot` - **Primary endpoint**: Returns entire season data (all players, games, teams) in one response for client-side filtering (30 KB)
-- `GET /api/players/tonight` - Tonight's players with eligibility and avg TTFL (legacy endpoint)
+- `GET /api/players/tonight` - Tonight's players with eligibility and avg Fantasy (legacy endpoint)
 - `GET /api/players/{player_id}/stats` - Recent game history for a player
 - `POST /api/games/pick` - Record a player pick
 - `GET /api/games/history` - User's pick history
@@ -126,18 +126,18 @@ The app uses a **snapshot-based architecture** optimized for instant navigation:
 
 **Daily Update Cycle (via GitHub Actions cron):**
 1. **NBA API → Daily Script**: `daily_update.py` fetches game data, scores, and injury info
-2. **Daily Script → Database**: Updates game statuses, TTFL scores, team stats, and injuries
-3. **TTFL Score Calculation**: Raw NBA stats → `ttfl.calculate_ttfl_score()` → stored in database
+2. **Daily Script → Database**: Updates game statuses, Fantasy scores, team stats, and injuries
+3. **Fantasy Score Calculation**: Raw NBA stats → `fantasy.calculate_fantasy_score()` → stored in database
 
 **Backend In-Memory Cache:**
 - On startup, backend loads entire season's games, teams, and players into memory
 - Cache includes: game schedules, team stats, player rosters (static/semi-static data)
-- TTFL score calculations still query DB (dynamic data)
+- Fantasy score calculations still query DB (dynamic data)
 - Significantly reduces database load for read operations
 
 **Request Flow (Snapshot Architecture):**
 1. **Frontend Initial Load**: Single `GET /api/snapshot` call fetches all season data (~30 KB JSON)
-2. **Backend Response**: Combines cached data (games, teams, players) + DB queries (TTFL averages)
+2. **Backend Response**: Combines cached data (games, teams, players) + DB queries (Fantasy averages)
 3. **Client-Side Filtering**: Frontend filters snapshot by date in memory (instant, no API calls)
 4. **Date Navigation**: URL changes (`?date=YYYY-MM-DD`) trigger client-side filter only
 5. **Pick Management**: localStorage tracks picks, eligibility calculated client-side
@@ -150,7 +150,7 @@ The app uses a **snapshot-based architecture** optimized for instant navigation:
 - `id` (PK), `nba_player_id` (unique), `name`, `team`
 
 **games**
-- `id` (PK), `player_id` (FK), `game_date`, `opponent`, `is_home`, `is_back2back`, `ttfl_score`, `picked`
+- `id` (PK), `player_id` (FK), `game_date`, `opponent`, `is_home`, `is_back2back`, `fantasy_score`, `picked`
 
 **Eligibility Query**: Player is eligible if no games with `picked=true` exist in the last 30 days.
 
@@ -160,7 +160,7 @@ The `scripts/daily_update.py` script maintains the database with fresh NBA data.
 
 **What it does:**
 1. **Updates game statuses**: Changes games from "scheduled" → "final" based on NBA schedule
-2. **Populates TTFL scores**: Fetches box scores for completed games and calculates TTFL scores
+2. **Populates Fantasy scores**: Fetches box scores for completed games and calculates Fantasy scores
 3. **Updates team stats**: Refreshes defensive ratings, pace, opponent stats for all teams
 4. **Updates injuries**: Fetches current injury reports from ESPN
 
@@ -202,7 +202,7 @@ Some endpoints use `get_optional_db()` to work without a database (API-only mode
 
 The backend pre-loads static/semi-static data on startup (`services/cache.py`):
 - **Cached**: Game schedules, teams, player rosters (reduces DB queries)
-- **Not cached**: TTFL scores and averages (queried from DB as they change frequently)
+- **Not cached**: Fantasy scores and averages (queried from DB as they change frequently)
 - Cache is refreshed by redeploying after daily updates
 
 ### NBA API Rate Limiting
@@ -219,9 +219,9 @@ The app uses a **fetch-once, filter-client-side** pattern:
 
 Next.js App Router uses Server Components by default. Client-side fetching is done in components marked with `'use client'` directive.
 
-### TTFL Score Calculation
+### Fantasy Score Calculation
 
-Always use `services.ttfl.calculate_ttfl_score(box_score)` for consistency. The function handles missing/None values gracefully with `.get()` and `or 0` fallbacks.
+Always use `services.fantasy.calculate_fantasy_score(box_score)` for consistency. The function handles missing/None values gracefully with `.get()` and `or 0` fallbacks.
 
 ## Next.js & React Best Practices
 
@@ -248,7 +248,7 @@ Always use `services.ttfl.calculate_ttfl_score(box_score)` for consistency. The 
 
 ## Design Decisions
 
-**Why store only TTFL score, not raw stats?**
+**Why store only Fantasy score, not raw stats?**
 - Simpler data model, user only cares about final score
 - Trade-off: Cannot recalculate if formula changes
 - Raw stats available via NBA API if needed later
@@ -278,5 +278,5 @@ No formal test suite yet. Manual testing via:
 - Database: Direct SQL queries via Neon console or `psql`
 
 When adding tests, consider:
-- Backend: pytest for API endpoints and TTFL score calculations
+- Backend: pytest for API endpoints and Fantasy score calculations
 - Frontend: Jest + React Testing Library for components

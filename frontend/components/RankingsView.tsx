@@ -9,7 +9,7 @@ import { useSnapshot } from "@/lib/hooks/useSnapshot";
 import { enrichPlayersWithEligibility, getAllPicks } from "@/lib/picks";
 
 const LOGO_SIZE = 28;
-type SortKey = "rank" | "avg_ttfl_l10" | "avg_ttfl_l30d" | "name";
+type SortKey = "rank" | "avg_fantasy_l10" | "avg_fantasy_l30d" | "name";
 
 function RankTrend({ delta }: { delta: number | null }) {
   if (delta === null || delta === 0)
@@ -43,7 +43,7 @@ export default function RankingsView() {
 
     // Sort all players by season avg to assign ranks
     const sorted = [...snapshot.players].sort(
-      (a, b) => b.avg_ttfl - a.avg_ttfl
+      (a, b) => b.avg_fantasy - a.avg_fantasy
     );
 
     return sorted.map((p, i) => ({ ...p, rank: i + 1 }));
@@ -130,8 +130,8 @@ export default function RankingsView() {
             className="text-sm rounded-md border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="rank">Season avg</option>
-            <option value="avg_ttfl_l10">Last 10</option>
-            <option value="avg_ttfl_l30d">Last 30d</option>
+            <option value="avg_fantasy_l10">Last 10</option>
+            <option value="avg_fantasy_l30d">Last 30d</option>
             <option value="name">Name</option>
           </select>
         </div>
@@ -148,7 +148,7 @@ export default function RankingsView() {
                 className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-primary border-l-[3px] border-primary/50"
                 colSpan={4}
               >
-                TTFL
+                Fantasy
               </th>
               <th></th>
             </tr>
@@ -197,24 +197,24 @@ export default function RankingsView() {
                   <td
                     className={`px-3 py-1 text-right tabular-nums border-l-[3px] border-primary/50 bg-primary/3 ${ineligible ? "opacity-50" : ""}`}
                   >
-                    {player.avg_ttfl.toFixed(1)}
+                    {player.avg_fantasy.toFixed(1)}
                   </td>
                   <td
                     className={`px-3 py-1 text-right tabular-nums text-muted-foreground bg-primary/3 ${ineligible ? "opacity-50" : ""}`}
                   >
-                    {player.avg_ttfl_week_ago > 0
-                      ? player.avg_ttfl_week_ago.toFixed(1)
+                    {player.avg_fantasy_week_ago > 0
+                      ? player.avg_fantasy_week_ago.toFixed(1)
                       : "—"}
                   </td>
                   <td
                     className={`px-3 py-1 text-right font-semibold tabular-nums bg-primary/3 ${ineligible ? "opacity-50" : ""}`}
                   >
-                    {player.avg_ttfl_l10.toFixed(1)}
+                    {player.avg_fantasy_l10.toFixed(1)}
                   </td>
                   <td
                     className={`px-3 py-1 text-right tabular-nums text-muted-foreground bg-primary/3 ${ineligible ? "opacity-50" : ""}`}
                   >
-                    {player.avg_ttfl_l30d.toFixed(1)}
+                    {player.avg_fantasy_l30d.toFixed(1)}
                   </td>
                   <td className="w-14 px-3 py-1 text-center">
                     <RankTrend delta={player.rank_delta} />

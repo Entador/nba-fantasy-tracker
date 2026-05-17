@@ -18,7 +18,7 @@ class Team(Base):
     pace = Column(Float, nullable=True)
     def_rating = Column(Float, nullable=True)
 
-    # Opponent stats (what they allow - key for TTFL prediction)
+    # Opponent stats (what they allow - key for Fantasy prediction)
     opp_ppg = Column(Float, nullable=True)
     opp_rpg = Column(Float, nullable=True)
     opp_apg = Column(Float, nullable=True)
@@ -46,7 +46,7 @@ class Player(Base):
     injury_details = Column(String(500), nullable=True)
 
     team = relationship("Team", back_populates="players")
-    ttfl_scores = relationship("TTFLScore", back_populates="player", cascade="all, delete-orphan")
+    fantasy_scores = relationship("FantasyScore", back_populates="player", cascade="all, delete-orphan")
 
 class Game(Base):
     __tablename__ = "games"
@@ -63,19 +63,19 @@ class Game(Base):
     home_team = relationship("Team", foreign_keys=[home_team_id])
     away_team = relationship("Team", foreign_keys=[away_team_id])
 
-class TTFLScore(Base):
-    __tablename__ = "ttfl_scores"
+class FantasyScore(Base):
+    __tablename__ = "fantasy_scores"
     __table_args__ = (UniqueConstraint("player_id", "game_id", name="uq_player_game"),)
 
     id = Column(Integer, primary_key=True, index=True)
     player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
     game_id = Column(Integer, ForeignKey("games.id"), nullable=False)
-    ttfl_score = Column(Integer, nullable=True)
+    fantasy_score = Column(Integer, nullable=True)
     minutes = Column(Integer, nullable=True)  # Minutes played; 0 or NULL = DNP
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    player = relationship("Player", back_populates="ttfl_scores")
+    player = relationship("Player", back_populates="fantasy_scores")
     game = relationship("Game")
 
 class AppMetadata(Base):

@@ -19,7 +19,7 @@ def get_snapshot(db: Session = Depends(get_db)):
     Get complete snapshot of all players, games, and teams for the entire season.
 
     Returns all data at once for client-side filtering. Uses in-memory cache for
-    games/teams/players, only queries DB for TTFL score calculations.
+    games/teams/players, only queries DB for Fantasy score calculations.
 
     Returns:
         {
@@ -30,7 +30,7 @@ def get_snapshot(db: Session = Depends(get_db)):
                 "total_teams": int,
                 "injury_updated_at": ISO timestamp or null
             },
-            "players": [player objects with TTFL stats],
+            "players": [player objects with Fantasy stats],
             "games": [all games for the season],
             "teams": [all team data]
         }
@@ -52,7 +52,7 @@ def get_snapshot(db: Session = Depends(get_db)):
         current_playoff_round = max(_playoff_rounds) if _playoff_rounds else None
         last_playoff_round = (current_playoff_round - 1) if current_playoff_round and current_playoff_round > 1 else None
 
-        # Batch calculate TTFL averages for all players (single DB query)
+        # Batch calculate Fantasy averages for all players (single DB query)
         player_ids = [p.id for p in all_players]
         averages = batch_calculate_averages(db, player_ids, current_playoff_round, last_playoff_round)
 
@@ -67,29 +67,29 @@ def get_snapshot(db: Session = Depends(get_db)):
         # Both windows use the same pool (players with data in BOTH) so ranks are comparable
         shared_pool = [
             p for p in all_players
-            if averages.get(p.id, {}).get('avg_ttfl', 0) > 0
-            and averages.get(p.id, {}).get('avg_ttfl_week_ago', 0) > 0
+            if averages.get(p.id, {}).get('avg_fantasy', 0) > 0
+            and averages.get(p.id, {}).get('avg_fantasy_week_ago', 0) > 0
         ]
         rank_now = {
             p.id: i + 1
-            for i, p in enumerate(sorted(shared_pool, key=lambda p: averages[p.id]['avg_ttfl'], reverse=True))
+            for i, p in enumerate(sorted(shared_pool, key=lambda p: averages[p.id]['avg_fantasy'], reverse=True))
         }
         rank_week_ago = {
             p.id: i + 1
-            for i, p in enumerate(sorted(shared_pool, key=lambda p: averages[p.id]['avg_ttfl_week_ago'], reverse=True))
+            for i, p in enumerate(sorted(shared_pool, key=lambda p: averages[p.id]['avg_fantasy_week_ago'], reverse=True))
         }
 
         # Build players response
         players_data = []
         for player in all_players:
             avgs = averages.get(player.id, {
-                'avg_ttfl': 0.0,
-                'avg_ttfl_l10': 0.0,
-                'avg_ttfl_l30d': 0.0,
-                'avg_ttfl_week_ago': 0.0,
-                'avg_ttfl_playoffs': None,
-                'avg_ttfl_current_round': None,
-                'avg_ttfl_last_round': None,
+                'avg_fantasy': 0.0,
+                'avg_fantasy_l10': 0.0,
+                'avg_fantasy_l30d': 0.0,
+                'avg_fantasy_week_ago': 0.0,
+                'avg_fantasy_playoffs': None,
+                'avg_fantasy_current_round': None,
+                'avg_fantasy_last_round': None,
             })
 
             # rank_delta > 0 means rising, < 0 means falling, None means not enough data
@@ -102,13 +102,13 @@ def get_snapshot(db: Session = Depends(get_db)):
                 'name': player.name,
                 'team': player.team.abbreviation if player.team else 'UNK',
                 'team_id': player.team_id,
-                'avg_ttfl': round(avgs['avg_ttfl'], 1),
-                'avg_ttfl_week_ago': round(avgs['avg_ttfl_week_ago'], 1),
-                'avg_ttfl_l10': round(avgs['avg_ttfl_l10'], 1),
-                'avg_ttfl_l30d': round(avgs['avg_ttfl_l30d'], 1),
-                'avg_ttfl_playoffs': round(avgs['avg_ttfl_playoffs'], 1) if avgs['avg_ttfl_playoffs'] is not None else None,
-                'avg_ttfl_current_round': round(avgs['avg_ttfl_current_round'], 1) if avgs['avg_ttfl_current_round'] is not None else None,
-                'avg_ttfl_last_round': round(avgs['avg_ttfl_last_round'], 1) if avgs['avg_ttfl_last_round'] is not None else None,
+                'avg_fantasy': round(avgs['avg_fantasy'], 1),
+                'avg_fantasy_week_ago': round(avgs['avg_fantasy_week_ago'], 1),
+                'avg_fantasy_l10': round(avgs['avg_fantasy_l10'], 1),
+                'avg_fantasy_l30d': round(avgs['avg_fantasy_l30d'], 1),
+                'avg_fantasy_playoffs': round(avgs['avg_fantasy_playoffs'], 1) if avgs['avg_fantasy_playoffs'] is not None else None,
+                'avg_fantasy_current_round': round(avgs['avg_fantasy_current_round'], 1) if avgs['avg_fantasy_current_round'] is not None else None,
+                'avg_fantasy_last_round': round(avgs['avg_fantasy_last_round'], 1) if avgs['avg_fantasy_last_round'] is not None else None,
                 'rank_delta': rank_delta,
                 'injury_status': player.injury_status,
                 'injury_return_date': player.injury_return_date,

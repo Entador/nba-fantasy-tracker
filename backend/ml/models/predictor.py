@@ -1,5 +1,5 @@
 """
-LightGBM regressor for TTFL score prediction.
+LightGBM regressor for Fantasy score prediction.
 
 Wraps LGBMRegressor with train/predict/save/load helpers.
 """
@@ -15,7 +15,7 @@ ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts"
 MODEL_PATH = ARTIFACTS_DIR / "lgbm.joblib"
 
 
-class TTFLPredictor:
+class FantasyPredictor:
     def __init__(self):
         self.model = LGBMRegressor(
             n_estimators=200,
@@ -72,8 +72,8 @@ class TTFLPredictor:
         # These never change regardless of feature_cols
         zeros = pd.Series(0, index=df_test.index)
         baseline_zero_mae = round(mean_absolute_error(y_test, zeros), 2)
-        baseline_last5_mae = round(mean_absolute_error(y_test, df_test["ttfl_trend_5"]), 2)
-        baseline_last10_mae = round(mean_absolute_error(y_test, df_test["ttfl_trend_10"]), 2)
+        baseline_last5_mae = round(mean_absolute_error(y_test, df_test["fantasy_trend_5"]), 2)
+        baseline_last10_mae = round(mean_absolute_error(y_test, df_test["fantasy_trend_10"]), 2)
 
         metrics = {
             "train_mae": round(mean_absolute_error(y_train, y_pred_train), 2),
@@ -117,6 +117,6 @@ class TTFLPredictor:
         joblib.dump(self, path)
 
     @classmethod
-    def load(cls, path: Path = MODEL_PATH) -> "TTFLPredictor":
+    def load(cls, path: Path = MODEL_PATH) -> "FantasyPredictor":
         """Load a saved predictor."""
         return joblib.load(path)

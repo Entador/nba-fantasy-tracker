@@ -1,17 +1,17 @@
-def calculate_ttfl_score(box_score: dict) -> int:
+def calculate_fantasy_score(box_score: dict) -> int:
     """
-    Calculate TTFL score from NBA box score statistics.
+    Calculate Fantasy score from NBA box score statistics.
 
     Formula:
     POSITIVE: PTS + REB + AST + STL + BLK + FGM + 3PM + FTM
     NEGATIVE: TOV + FG_missed + 3P_missed + FT_missed
-    TTFL_SCORE = POSITIVE - NEGATIVE
+    FANTASY_SCORE = POSITIVE - NEGATIVE
 
     Args:
         box_score: Dictionary containing player stats
 
     Returns:
-        Calculated TTFL score as integer
+        Calculated Fantasy score as integer
     """
     # Positive contributions
     pts = box_score.get('PTS', 0) or 0

@@ -1,5 +1,5 @@
 """
-Training script for the TTFL linear regression model.
+Training script for the Fantasy linear regression model.
 
 Usage:
     poetry run python -m ml.training.train              # build from DB, train
@@ -15,17 +15,17 @@ from pathlib import Path
 # Allow running from the backend/ directory
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from ml.models.predictor import TTFLPredictor
+from ml.models.predictor import FantasyPredictor
 
 DATA_PATH = Path(__file__).parent.parent / "artifacts" / "dataset.csv"
 
 # --- Experiment config ---
 # Edit freely: add/remove features without touching predictor.py or baselines
 FEATURE_COLS = [
-    "ttfl_trend_5",
-    "ttfl_trend_10",
-    "std_ttfl_last_5",
-    "std_ttfl_last_10",
+    "fantasy_trend_5",
+    "fantasy_trend_10",
+    "std_fantasy_last_5",
+    "std_fantasy_last_10",
     "avg_minutes_last_5",
     "games_last_10d",
     "is_home",
@@ -36,7 +36,7 @@ FEATURE_COLS = [
     "opp_rpg",
     "opp_apg",
 ]
-TARGET_COL = "ttfl_delta"
+TARGET_COL = "fantasy_delta"
 # -------------------------
 
 
@@ -76,7 +76,7 @@ def main():
     print(f"Features: {FEATURE_COLS}")
     print(f"Target  : {TARGET_COL}")
 
-    predictor = TTFLPredictor()
+    predictor = FantasyPredictor()
     metrics = predictor.train(df, FEATURE_COLS, TARGET_COL)
 
     print("\n--- Results ---")

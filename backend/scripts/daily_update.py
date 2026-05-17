@@ -1,9 +1,9 @@
 """
-Daily database update script for TTFL Tracker.
+Daily database update script for NBA Fantasy Tracker.
 
 Maintains the database by:
 1. Updating game statuses (scheduled -> final)
-2. Populating TTFL scores for completed games
+2. Populating Fantasy scores for completed games
 3. Updating team defensive stats
 4. Updating player injury statuses from ESPN
 5. Updating player teams to track trades
@@ -15,7 +15,7 @@ Usage:
 
 Options:
     --games-only      Only update game statuses
-    --scores-only     Only populate TTFL scores
+    --scores-only     Only populate Fantasy scores
     --stats-only      Only update team stats
     --injuries-only   Only update injury statuses
     --trades-only     Only update player trades
@@ -39,9 +39,9 @@ from datetime import date
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from models.database import SessionLocal
-from models import Team, Player, Game, TTFLScore, AppMetadata
+from models import Team, Player, Game, FantasyScore, AppMetadata
 from services.client import NBAClient
-from services.ttfl import calculate_ttfl_score
+from services.fantasy import calculate_fantasy_score
 from services.injuries import update_player_injuries
 from services.injuries_nba import update_player_injuries_nba
 
@@ -294,9 +294,9 @@ def update_game_statuses(db: Session, dry_run: bool = False) -> int:
     return updated_count
 
 
-def populate_ttfl_scores(db: Session, dry_run: bool = False) -> tuple[int, int, int]:
+def populate_fantasy_scores(db: Session, dry_run: bool = False) -> tuple[int, int, int]:
     """
-    Populate TTFL scores for final games missing scores.
+    Populate Fantasy scores for final games missing scores.
 
     Strategy:
     1. Try box scores first (faster - one API call per game)
@@ -306,7 +306,7 @@ def populate_ttfl_scores(db: Session, dry_run: bool = False) -> tuple[int, int, 
         Tuple of (games_processed, scores_added, errors)
     """
     print("\n" + "=" * 50)
-    print("Phase 2: Populate TTFL Scores")
+    print("Phase 2: Populate Fantasy Scores")
     print("=" * 50)
 
     regular_season_start = date(2025, 10, 22)
@@ -315,8 +315,8 @@ def populate_ttfl_scores(db: Session, dry_run: bool = False) -> tuple[int, int, 
     players = db.query(Player).all()
     player_map = {p.nba_player_id: p.id for p in players}
 
-    # Find final regular season games without any TTFL scores
-    games_with_scores = db.query(TTFLScore.game_id).distinct()
+    # Find final regular season games without any Fantasy scores
+    games_with_scores = db.query(FantasyScore.game_id).distinct()
     games_needing_scores = (
         db.query(Game)
         .filter(
@@ -331,7 +331,7 @@ def populate_ttfl_scores(db: Session, dry_run: bool = False) -> tuple[int, int, 
     )
 
     if not games_needing_scores:
-        print("No games needing TTFL scores")
+        print("No games needing Fantasy scores")
         return 0, 0, 0
 
     print(f"Found {len(games_needing_scores)} games needing scores")
@@ -364,21 +364,21 @@ def populate_ttfl_scores(db: Session, dry_run: bool = False) -> tuple[int, int, 
             if not player_id:
                 continue
 
-            ttfl_score = calculate_ttfl_score(box_score)
+            fantasy_score = calculate_fantasy_score(box_score)
             minutes = box_score.get('minutes', 0)
 
             if not dry_run:
-                existing = db.query(TTFLScore).filter(
-                    TTFLScore.player_id == player_id,
-                    TTFLScore.game_id == game.id
+                existing = db.query(FantasyScore).filter(
+                    FantasyScore.player_id == player_id,
+                    FantasyScore.game_id == game.id
                 ).first()
                 if existing:
                     continue
 
-                db.add(TTFLScore(
+                db.add(FantasyScore(
                     player_id=player_id,
                     game_id=game.id,
-                    ttfl_score=ttfl_score,
+                    fantasy_score=fantasy_score,
                     minutes=minutes,
                 ))
                 game_scores += 1
@@ -444,18 +444,18 @@ def populate_ttfl_scores(db: Session, dry_run: bool = False) -> tuple[int, int, 
                     continue
 
                 if not dry_run:
-                    existing = db.query(TTFLScore).filter(
-                        TTFLScore.player_id == player.id,
-                        TTFLScore.game_id == game.id
+                    existing = db.query(FantasyScore).filter(
+                        FantasyScore.player_id == player.id,
+                        FantasyScore.game_id == game.id
                     ).first()
                     if existing:
                         continue
 
-                    ttfl_score = calculate_ttfl_score(game_log)
-                    db.add(TTFLScore(
+                    fantasy_score = calculate_fantasy_score(game_log)
+                    db.add(FantasyScore(
                         player_id=player.id,
                         game_id=game.id,
-                        ttfl_score=ttfl_score,
+                        fantasy_score=fantasy_score,
                         minutes=0,  # Not available in game log format
                     ))
                     fallback_scores += 1
@@ -730,9 +730,9 @@ def update_player_trades(db: Session, dry_run: bool = False) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Daily TTFL database update")
+    parser = argparse.ArgumentParser(description="Daily Fantasy database update")
     parser.add_argument("--games-only", action="store_true", help="Only update game statuses")
-    parser.add_argument("--scores-only", action="store_true", help="Only populate TTFL scores")
+    parser.add_argument("--scores-only", action="store_true", help="Only populate Fantasy scores")
     parser.add_argument("--stats-only", action="store_true", help="Only update team stats")
     parser.add_argument("--injuries-only", action="store_true", help="Only update injury statuses")
     parser.add_argument("--trades-only", action="store_true", help="Only update player trades")
@@ -742,7 +742,7 @@ def main():
     run_all = not any([args.games_only, args.scores_only, args.stats_only, args.injuries_only, args.trades_only])
 
     print("=" * 50)
-    print("TTFL Daily Update Script")
+    print("Fantasy Daily Update Script")
     print(f"Started: {datetime.now(timezone.utc).isoformat()}")
     if args.dry_run:
         print("*** DRY RUN MODE - No changes will be made ***")
@@ -755,9 +755,9 @@ def main():
         if run_all or args.games_only:
             update_game_statuses(db, dry_run=args.dry_run)
 
-        # Phase 2: Populate TTFL scores
+        # Phase 2: Populate Fantasy scores
         if run_all or args.scores_only:
-            populate_ttfl_scores(db, dry_run=args.dry_run)
+            populate_fantasy_scores(db, dry_run=args.dry_run)
 
         # Phase 3: Update team stats
         if run_all or args.stats_only:

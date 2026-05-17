@@ -158,16 +158,16 @@ export default function PlayerFilters({
           <div className="flex items-center gap-2">
             <SortAsc className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm">
-              {sortBy === "avg-desc" && "TTFL: High to Low"}
-              {sortBy === "avg-asc" && "TTFL: Low to High"}
+              {sortBy === "avg-desc" && "Fantasy: High to Low"}
+              {sortBy === "avg-asc" && "Fantasy: Low to High"}
               {sortBy === "name-asc" && "Name: A to Z"}
               {sortBy === "name-desc" && "Name: Z to A"}
             </span>
           </div>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="avg-desc">TTFL: High to Low</SelectItem>
-          <SelectItem value="avg-asc">TTFL: Low to High</SelectItem>
+          <SelectItem value="avg-desc">Fantasy: High to Low</SelectItem>
+          <SelectItem value="avg-asc">Fantasy: Low to High</SelectItem>
           <SelectItem value="name-asc">Name: A to Z</SelectItem>
           <SelectItem value="name-desc">Name: Z to A</SelectItem>
         </SelectContent>

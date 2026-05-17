@@ -53,7 +53,7 @@ function TableSkeleton() {
               className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-primary border-l-[3px] border-primary/50"
               colSpan={3}
             >
-              TTFL
+              Fantasy
             </th>
             <th></th>
           </tr>

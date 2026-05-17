@@ -1,10 +1,10 @@
-# TTFL Tracker - Setup Guide
+# NBA Fantasy Tracker - Setup Guide
 
 ## What's Been Built
 
 ### ✅ Backend (FastAPI + Python)
 - Database models (Player, Game)
-- TTFL score calculation service
+- Fantasy score calculation service
 - NBA API integration service
 - REST API endpoints:
   - `GET /api/players/tonight` - Tonight's players with eligibility
@@ -57,7 +57,7 @@ poetry show
 
 If you have PostgreSQL installed locally:
 ```
-DATABASE_URL=postgresql://postgres:password@localhost:5432/ttfl_tracker
+DATABASE_URL=postgresql://postgres:password@localhost:5432/nba_fantasy_tracker
 ```
 
 ### 3. Configure Backend Environment
@@ -97,7 +97,7 @@ CREATE TABLE games (
     opponent VARCHAR(3) NOT NULL,
     is_home BOOLEAN NOT NULL,
     is_back2back BOOLEAN DEFAULT FALSE,
-    ttfl_score INTEGER NOT NULL,
+    fantasy_score INTEGER NOT NULL,
     picked BOOLEAN DEFAULT FALSE
 );
 
@@ -192,7 +192,7 @@ poetry run python scripts/daily_update.py
 
 The `daily_update.py` script:
 - Updates game statuses (scheduled → final)
-- Fetches TTFL scores for completed games
+- Fetches Fantasy scores for completed games
 - Updates team stats
 - Updates player injury information
 
@@ -270,7 +270,7 @@ Once everything is working:
 ## Project Structure
 
 ```
-ttfl-tracker/
+nba-fantasy-tracker/
 ├── backend/
 │   ├── app.py                  # FastAPI app
 │   ├── pyproject.toml          # Poetry deps
@@ -278,7 +278,7 @@ ttfl-tracker/
 │   │   ├── database.py         # DB setup
 │   │   └── __init__.py         # Player, Game models
 │   ├── services/
-│   │   ├── ttfl.py            # Score calculation
+│   │   ├── fantasy.py            # Score calculation
 │   │   └── nba_api.py         # NBA data fetching
 │   └── routers/
 │       ├── players.py         # Player endpoints

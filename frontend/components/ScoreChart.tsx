@@ -13,7 +13,7 @@ import {
 
 interface GameData {
   game_date: string;
-  ttfl_score: number;
+  fantasy_score: number;
   picked: boolean;
   dnp?: boolean;
 }
@@ -111,7 +111,7 @@ export function ScoreChart({ games, avgScore }: ScoreChartProps) {
       month: "short",
       day: "numeric",
     }),
-    score: game.ttfl_score,
+    score: game.fantasy_score,
     picked: game.picked,
   }));
 

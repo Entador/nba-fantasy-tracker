@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TTFL Tracker",
+  title: "NBA Fantasy Tracker",
   description:
-    "Track your TTFL player picks and optimize your daily selections",
+    "Track your Fantasy player picks and optimize your daily selections",
 };
 
 export default function RootLayout({
@@ -34,7 +34,7 @@ export default function RootLayout({
                 className="flex items-center gap-2 sm:gap-2 text-base sm:text-xl font-bold tracking-tight hover:text-primary transition-colors"
               >
                 <Trophy className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-                <p>TTFL Tracker</p>
+                <p>NBA Fantasy Tracker</p>
               </Link>
               <div className="flex text-sm sm:text-base gap-3 sm:gap-6">
                 <Link
@@ -68,7 +68,7 @@ export default function RootLayout({
         <footer className="border-t bg-muted/30">
           <div className="container mx-auto px-4 py-5 text-center">
             <p className="text-sm text-muted-foreground">
-              TTFL Tracker - Make smarter picks with data-driven insights
+              NBA Fantasy Tracker - Make smarter picks with data-driven insights
             </p>
             <p className="text-xs text-muted-foreground/70 mt-2">
               Elevate your fantasy basketball game

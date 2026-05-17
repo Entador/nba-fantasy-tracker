@@ -1,9 +1,19 @@
 /**
- * Local storage utility for managing TTFL picks.
+ * Local storage utility for managing Fantasy picks.
  * Picks are stored as an array of { playerId, date } objects.
  */
 
-const STORAGE_KEY = 'ttfl-picks';
+const STORAGE_KEY = 'nba-fantasy-picks';
+const LEGACY_STORAGE_KEY = 'ttfl-picks';
+
+// One-time migration from the legacy storage key.
+if (typeof window !== 'undefined') {
+  const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (legacy && !localStorage.getItem(STORAGE_KEY)) {
+    localStorage.setItem(STORAGE_KEY, legacy);
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  }
+}
 
 export interface Pick {
   playerId: number;

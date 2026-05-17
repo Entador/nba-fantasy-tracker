@@ -35,9 +35,9 @@ export function filterAndSortPlayers(
   filtered.sort((a, b) => {
     switch (sortBy) {
       case 'avg-desc':
-        return b.avg_ttfl_l10 - a.avg_ttfl_l10;
+        return b.avg_fantasy_l10 - a.avg_fantasy_l10;
       case 'avg-asc':
-        return a.avg_ttfl_l10 - b.avg_ttfl_l10;
+        return a.avg_fantasy_l10 - b.avg_fantasy_l10;
       case 'name-asc':
         return a.name.localeCompare(b.name);
       case 'name-desc':

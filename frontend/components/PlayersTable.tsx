@@ -132,10 +132,10 @@ export interface PlayerWithEligibility extends Player {
   days_until_eligible: number | null;
   is_back_to_back: boolean;
   rank_delta: number | null;
-  avg_ttfl_week_ago: number;
-  avg_ttfl_playoffs: number | null;
-  avg_ttfl_current_round: number | null;
-  avg_ttfl_last_round: number | null;
+  avg_fantasy_week_ago: number;
+  avg_fantasy_playoffs: number | null;
+  avg_fantasy_current_round: number | null;
+  avg_fantasy_last_round: number | null;
 }
 
 interface StatRange {
@@ -220,7 +220,7 @@ export default function PlayersTable({
                 className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-primary border-l-[3px] border-primary/50"
                 colSpan={4}
               >
-                TTFL
+                Fantasy
               </th>
               {isPlayoffPeriod && (
                 <th
@@ -345,15 +345,15 @@ export default function PlayersTable({
                       isIneligible ? "opacity-50" : ""
                     }`}
                   >
-                    {player.avg_ttfl.toFixed(1)}
+                    {player.avg_fantasy.toFixed(1)}
                   </td>
                   <td
                     className={`px-3 py-0.5 sm:py-1 text-right text-muted-foreground tabular-nums bg-primary/3 ${
                       isIneligible ? "opacity-50" : ""
                     }`}
                   >
-                    {player.avg_ttfl_week_ago > 0
-                      ? player.avg_ttfl_week_ago.toFixed(1)
+                    {player.avg_fantasy_week_ago > 0
+                      ? player.avg_fantasy_week_ago.toFixed(1)
                       : "—"}
                   </td>
                   <td
@@ -361,14 +361,14 @@ export default function PlayersTable({
                       isIneligible ? "opacity-50" : ""
                     }`}
                   >
-                    {player.avg_ttfl_l10.toFixed(1)}
+                    {player.avg_fantasy_l10.toFixed(1)}
                   </td>
                   <td
                     className={`px-3 py-0.5 sm:py-1 text-right text-muted-foreground tabular-nums bg-primary/3 ${
                       isIneligible ? "opacity-50" : ""
                     }`}
                   >
-                    {player.avg_ttfl_l30d.toFixed(1)}
+                    {player.avg_fantasy_l30d.toFixed(1)}
                   </td>
                   {isPlayoffPeriod && (
                     <>
@@ -377,8 +377,8 @@ export default function PlayersTable({
                           isIneligible ? "opacity-50" : ""
                         }`}
                       >
-                        {player.avg_ttfl_playoffs != null
-                          ? player.avg_ttfl_playoffs.toFixed(1)
+                        {player.avg_fantasy_playoffs != null
+                          ? player.avg_fantasy_playoffs.toFixed(1)
                           : "—"}
                       </td>
                       <td
@@ -386,8 +386,8 @@ export default function PlayersTable({
                           isIneligible ? "opacity-50" : ""
                         }`}
                       >
-                        {player.avg_ttfl_last_round != null
-                          ? player.avg_ttfl_last_round.toFixed(1)
+                        {player.avg_fantasy_last_round != null
+                          ? player.avg_fantasy_last_round.toFixed(1)
                           : "—"}
                       </td>
                       <td
@@ -395,8 +395,8 @@ export default function PlayersTable({
                           isIneligible ? "opacity-50" : ""
                         }`}
                       >
-                        {player.avg_ttfl_current_round != null
-                          ? player.avg_ttfl_current_round.toFixed(1)
+                        {player.avg_fantasy_current_round != null
+                          ? player.avg_fantasy_current_round.toFixed(1)
                           : "—"}
                       </td>
                     </>
