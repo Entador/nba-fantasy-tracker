@@ -130,28 +130,39 @@ def parse_injury_pdf(pdf_content: bytes) -> tuple[list[dict], set[str]]:
                 elif COL_STATUS_X_MIN <= x < COL_REASON_X_MIN:
                     status_words.append(w)
 
-            # Extract reason column with tighter tolerance to preserve spaces.
-            reason_words: list[dict] = [
-                w for w in page.extract_words(x_tolerance=1)
-                if w["top"] > header_top and w["x0"] >= COL_REASON_X_MIN
+            # Detect NOTYETSUBMITTED rows on the default-tolerance pass —
+            # there the token stays concatenated as a single word. The
+            # tight-tolerance pass below splits it into "NOT YET SUBMITTED",
+            # which would break both detection and player-reason assignment.
+            nys_tops: list[float] = [
+                w["top"] for w in words
+                if w["top"] > header_top
+                and w["x0"] >= COL_REASON_X_MIN
+                and w["text"] == "NOTYETSUBMITTED"
             ]
 
-            # Detect NOTYETSUBMITTED rows: a reason-column word with that text
-            # and no player name at the same vertical position.
             player_tops = {pw["top"] for pw in player_words}
-            for rw in reason_words:
-                if rw["text"] != "NOTYETSUBMITTED":
+            for nys_top in nys_tops:
+                # No player on the same line → team-level NOTYETSUBMITTED
+                if any(abs(nys_top - pt) < 12 for pt in player_tops):
                     continue
-                # No player on the same line → this is a team-level entry
-                if not any(abs(rw["top"] - pt) < 12 for pt in player_tops):
-                    # Find the team word closest to this row
-                    closest_team = min(
-                        (tw for tw in team_words),
-                        key=lambda tw: abs(tw["top"] - rw["top"]),
-                        default=None,
-                    )
-                    if closest_team:
-                        not_submitted_teams.add(_normalize_team_key(closest_team["text"]))
+                closest_team = min(
+                    team_words,
+                    key=lambda tw: abs(tw["top"] - nys_top),
+                    default=None,
+                )
+                if closest_team:
+                    not_submitted_teams.add(_normalize_team_key(closest_team["text"]))
+
+            # Extract reason column with tighter tolerance to preserve spaces.
+            # Drop the split "NOT YET SUBMITTED" fragments so they don't leak
+            # into the previous player's reason.
+            reason_words: list[dict] = [
+                w for w in page.extract_words(x_tolerance=1)
+                if w["top"] > header_top
+                and w["x0"] >= COL_REASON_X_MIN
+                and not any(abs(w["top"] - nt) < 4 for nt in nys_tops)
+            ]
 
             if not player_words:
                 continue
@@ -180,7 +191,6 @@ def parse_injury_pdf(pdf_content: bytes) -> tuple[list[dict], set[str]]:
                 reason_parts = [
                     rw for rw in reason_words
                     if midpoint_above < rw["top"] <= midpoint_below
-                    and rw["text"] != "NOTYETSUBMITTED"
                 ]
                 reason_parts.sort(key=lambda w: w["top"])
                 reason = " ".join(w["text"] for w in reason_parts)

@@ -84,7 +84,8 @@ backend/
 ├── services/
 │   ├── fantasy.py             # calculate_fantasy_score(), calculate_average_fantasy_score()
 │   ├── nba_api.py          # NBA API wrapper functions (used by scripts)
-│   └── injuries.py         # Fetch injury data from ESPN
+│   ├── injuries_nba.py     # Parse official NBA injury report PDFs (default source)
+│   └── injuries.py         # Fetch injury data from ESPN (fallback, INJURY_SOURCE=espn)
 └── scripts/
     ├── daily_update.py     # Automated database updates (runs via GitHub Actions)
     ├── populate_db.py      # Initial database population
@@ -166,7 +167,7 @@ The `scripts/daily_update.py` script maintains the database with fresh NBA data.
 1. **Updates game statuses**: Changes games from "scheduled" → "final" based on NBA schedule
 2. **Populates Fantasy scores**: Fetches box scores for completed games and calculates Fantasy scores
 3. **Updates team stats**: Refreshes defensive ratings, pace, opponent stats for all teams
-4. **Updates injuries**: Fetches current injury reports from ESPN
+4. **Updates injuries**: Parses the latest official NBA injury report PDF from `official.nba.com` (statuses: Out / Doubtful / Questionable / Probable, plus reason). Players on teams flagged `NOTYETSUBMITTED` are skipped to preserve their existing status. Set `INJURY_SOURCE=espn` to use the ESPN fallback instead.
 
 **Manual usage:**
 ```bash
