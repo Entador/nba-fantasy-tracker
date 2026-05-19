@@ -140,7 +140,7 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
   const error = swrError?.message || null;
 
   // Filter/sort state
-  const [sortBy, setSortBy] = useState<SortOption>("avg-desc");
+  const [sortBy, setSortBy] = useState<SortOption>("l10-desc");
   const [filterBy, setFilterBy] = useState<FilterOption>("available");
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
 
@@ -409,8 +409,6 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
         )}
 
       <PlayerFilters
-        sortBy={sortBy}
-        onSortChange={setSortBy}
         filterBy={filterBy}
         onFilterChange={setFilterBy}
         totalCount={totalCount}
@@ -488,6 +486,8 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
                   isPlayoffPeriod={snapshot?.metadata.is_playoff_period}
                   currentPlayoffRound={snapshot?.metadata.current_playoff_round}
                   lastPlayoffRound={snapshot?.metadata.last_playoff_round}
+                  sortBy={sortBy}
+                  onSortChange={setSortBy}
                 />
               )}
             </>

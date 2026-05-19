@@ -12,7 +12,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Player } from "@/lib/api";
+import {
+  PlayerWithEligibility,
+  SortDirection,
+  SortField,
+  SortOption,
+  parseSort,
+} from "@/lib/players";
+import { STAT_COLUMNS, StatColumn, formatStat } from "@/lib/statColumns";
+import { cn } from "@/lib/utils";
 
 const LOGO_SIZE = 32;
 function RankTrend({ delta }: { delta: number | null }) {
@@ -126,18 +134,6 @@ function InjuryBadge({
   );
 }
 
-export interface PlayerWithEligibility extends Player {
-  is_eligible: boolean;
-  last_picked_date: string | null;
-  days_until_eligible: number | null;
-  is_back_to_back: boolean;
-  rank_delta: number | null;
-  avg_fantasy_week_ago: number;
-  avg_fantasy_playoffs: number | null;
-  avg_fantasy_current_round: number | null;
-  avg_fantasy_last_round: number | null;
-}
-
 interface StatRange {
   min: number;
   max: number;
@@ -160,6 +156,52 @@ interface PlayersTableProps {
   isPlayoffPeriod?: boolean;
   currentPlayoffRound?: number | null;
   lastPlayoffRound?: number | null;
+  sortBy: SortOption;
+  onSortChange: (sort: SortOption) => void;
+}
+
+function SortHeader({
+  field,
+  label,
+  align = "right",
+  sortBy,
+  onSortChange,
+  className,
+  defaultDirection = "desc",
+}: {
+  field: SortField;
+  label: React.ReactNode;
+  align?: "left" | "right";
+  sortBy: SortOption;
+  onSortChange: (sort: SortOption) => void;
+  className?: string;
+  defaultDirection?: SortDirection;
+}) {
+  const { field: activeField, direction } = parseSort(sortBy);
+  const isActive = activeField === field;
+  const nextDirection: SortDirection = isActive
+    ? direction === "asc"
+      ? "desc"
+      : "asc"
+    : defaultDirection;
+  const arrow = isActive ? (direction === "asc" ? "▲" : "▼") : "";
+
+  return (
+    <th className={className}>
+      <button
+        type="button"
+        onClick={() => onSortChange(`${field}-${nextDirection}`)}
+        className={cn(
+          "w-full flex items-center gap-1 font-medium hover:text-foreground transition-colors cursor-pointer",
+          align === "right" ? "justify-end" : "justify-start",
+          isActive && "text-foreground"
+        )}
+      >
+        {label}
+        <span className="text-[10px] w-2 inline-block">{arrow}</span>
+      </button>
+    </th>
+  );
 }
 
 /**
@@ -193,7 +235,45 @@ export default function PlayersTable({
   isPlayoffPeriod = false,
   currentPlayoffRound = null,
   lastPlayoffRound = null,
+  sortBy,
+  onSortChange,
 }: PlayersTableProps) {
+  const activeField = parseSort(sortBy).field;
+  const playoffCtx = { currentPlayoffRound, lastPlayoffRound };
+  const visibleStats = STAT_COLUMNS.filter(
+    (c) => c.group !== "playoffs" || isPlayoffPeriod
+  );
+  const statTextClasses = (field: SortField) =>
+    activeField === field
+      ? "font-semibold text-foreground"
+      : "text-muted-foreground";
+
+  const renderStatCell = (
+    col: StatColumn,
+    player: PlayerWithEligibility,
+    isIneligible: boolean
+  ) => {
+    const value = col.accessor(player);
+    const inlineBg = col.rangeKey
+      ? { backgroundColor: getStatBgColor(value, statRanges[col.rangeKey]) }
+      : undefined;
+    return (
+      <td
+        key={col.field}
+        className={cn(
+          "px-3 py-0.5 sm:py-1 text-right tabular-nums",
+          col.bgClass,
+          col.borderClass,
+          statTextClasses(col.field),
+          isIneligible && "opacity-50"
+        )}
+        style={inlineBg}
+      >
+        {formatStat(value)}
+      </td>
+    );
+  };
+
   return (
     <div className="relative animate-fade-in">
       {loading && (
@@ -234,35 +314,37 @@ export default function PlayersTable({
               <th></th>
             </tr>
             {/* Column headers row */}
-            <tr className="border-b bg-muted/20">
+            <tr className="border-b bg-muted/20 text-muted-foreground">
               <th className="w-10 px-1 py-2"></th>
-              <th className="whitespace-nowrap pr-2 py-2 text-left font-medium">
-                Player
-              </th>
-              <th className="px-3 py-2 text-left font-medium border-l-[3px] border-red-400/50">
-                Matchup
-              </th>
-              <th className="px-3 py-2 text-right font-medium">Pace</th>
-              <th className="px-3 py-2 text-right font-medium">DRtg</th>
-              <th className="px-3 py-2 text-right font-medium border-l-[3px] border-primary/50">
-                Season
-              </th>
-              <th className="px-3 py-2 text-right font-medium">-14d</th>
-              <th className="px-3 py-2 text-right font-medium">L10</th>
-              <th className="px-3 py-2 text-right font-medium">30d</th>
-              {isPlayoffPeriod && (
-                <>
-                  <th className="px-3 py-2 text-right font-medium border-l-[3px] border-amber-400/50">
-                    All
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium">
-                    {lastPlayoffRound ? `Rnd ${lastPlayoffRound}` : "—"}
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium">
-                    {currentPlayoffRound ? `Rnd ${currentPlayoffRound}` : "—"}
-                  </th>
-                </>
-              )}
+              <SortHeader
+                field="name"
+                label="Player"
+                align="left"
+                sortBy={sortBy}
+                onSortChange={onSortChange}
+                defaultDirection="asc"
+                className="whitespace-nowrap pr-2 py-2"
+              />
+              <SortHeader
+                field="matchup"
+                label="Matchup"
+                align="left"
+                sortBy={sortBy}
+                onSortChange={onSortChange}
+                defaultDirection="asc"
+                className="px-3 py-2 border-l-[3px] border-red-400/50"
+              />
+              {visibleStats.map((col) => (
+                <SortHeader
+                  key={col.field}
+                  field={col.field}
+                  label={col.label(playoffCtx)}
+                  sortBy={sortBy}
+                  onSortChange={onSortChange}
+                  defaultDirection={col.defaultDirection}
+                  className={cn("px-3 py-2", col.borderClass)}
+                />
+              ))}
               <th className="w-8 px-2 py-2"></th>
               <th className="w-14 px-2 py-2"></th>
             </tr>
@@ -314,92 +396,8 @@ export default function PlayersTable({
                       <TeamLogo team={player.opponent} size={LOGO_SIZE} />
                     </span>
                   </td>
-                  <td
-                    className={`px-3 py-0.5 sm:py-1 text-right text-muted-foreground tabular-nums bg-red-500/3 ${
-                      isIneligible ? "opacity-50" : ""
-                    }`}
-                    style={{
-                      backgroundColor: getStatBgColor(
-                        player.opp_pace,
-                        statRanges.pace
-                      ),
-                    }}
-                  >
-                    {player.opp_pace?.toFixed(1) ?? "-"}
-                  </td>
-                  <td
-                    className={`px-3 py-0.5 sm:py-1 text-right text-muted-foreground tabular-nums bg-red-500/3 ${
-                      isIneligible ? "opacity-50" : ""
-                    }`}
-                    style={{
-                      backgroundColor: getStatBgColor(
-                        player.opp_def_rating,
-                        statRanges.defRating
-                      ),
-                    }}
-                  >
-                    {player.opp_def_rating?.toFixed(1) ?? "-"}
-                  </td>
-                  <td
-                    className={`px-3 py-0.5 sm:py-1 text-right text-muted-foreground tabular-nums border-l-[3px] border-primary/50 bg-primary/3 ${
-                      isIneligible ? "opacity-50" : ""
-                    }`}
-                  >
-                    {player.avg_fantasy.toFixed(1)}
-                  </td>
-                  <td
-                    className={`px-3 py-0.5 sm:py-1 text-right text-muted-foreground tabular-nums bg-primary/3 ${
-                      isIneligible ? "opacity-50" : ""
-                    }`}
-                  >
-                    {player.avg_fantasy_week_ago > 0
-                      ? player.avg_fantasy_week_ago.toFixed(1)
-                      : "—"}
-                  </td>
-                  <td
-                    className={`px-3 py-0.5 sm:py-1 text-right font-semibold tabular-nums bg-primary/3 ${
-                      isIneligible ? "opacity-50" : ""
-                    }`}
-                  >
-                    {player.avg_fantasy_l10.toFixed(1)}
-                  </td>
-                  <td
-                    className={`px-3 py-0.5 sm:py-1 text-right text-muted-foreground tabular-nums bg-primary/3 ${
-                      isIneligible ? "opacity-50" : ""
-                    }`}
-                  >
-                    {player.avg_fantasy_l30d.toFixed(1)}
-                  </td>
-                  {isPlayoffPeriod && (
-                    <>
-                      <td
-                        className={`px-3 py-0.5 sm:py-1 text-right font-semibold tabular-nums border-l-[3px] border-amber-400/50 bg-amber-500/3 ${
-                          isIneligible ? "opacity-50" : ""
-                        }`}
-                      >
-                        {player.avg_fantasy_playoffs != null
-                          ? player.avg_fantasy_playoffs.toFixed(1)
-                          : "—"}
-                      </td>
-                      <td
-                        className={`px-3 py-0.5 sm:py-1 text-right text-muted-foreground tabular-nums bg-amber-500/3 ${
-                          isIneligible ? "opacity-50" : ""
-                        }`}
-                      >
-                        {player.avg_fantasy_last_round != null
-                          ? player.avg_fantasy_last_round.toFixed(1)
-                          : "—"}
-                      </td>
-                      <td
-                        className={`px-3 py-0.5 sm:py-1 text-right text-muted-foreground tabular-nums bg-amber-500/3 ${
-                          isIneligible ? "opacity-50" : ""
-                        }`}
-                      >
-                        {player.avg_fantasy_current_round != null
-                          ? player.avg_fantasy_current_round.toFixed(1)
-                          : "—"}
-                      </td>
-                    </>
+                  {visibleStats.map((col) =>
+                    renderStatCell(col, player, isIneligible)
                   )}
                   <td className="px-2 py-0.5 sm:py-1 text-center">
                     <RankTrend delta={player.rank_delta} />
