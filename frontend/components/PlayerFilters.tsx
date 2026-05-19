@@ -17,8 +17,7 @@ import { GameFilterOption } from "@/lib/snapshot";
 import { Check, SortAsc, Trophy } from "lucide-react";
 import { useState } from "react";
 
-export type { FilterOption, SortOption };
-export type { GameFilterOption as Game };
+export type { FilterOption, GameFilterOption as Game, SortOption };
 
 interface PlayerFiltersProps {
   sortBy: SortOption;
@@ -154,7 +153,7 @@ export default function PlayerFilters({
         value={sortBy}
         onValueChange={(value) => onSortChange(value as SortOption)}
       >
-        <SelectTrigger className="w-full sm:w-44 h-9">
+        <SelectTrigger className="w-full sm:max-w-[24ch] h-9">
           <div className="flex items-center gap-2">
             <SortAsc className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm">
