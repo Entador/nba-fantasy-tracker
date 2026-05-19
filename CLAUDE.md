@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NBA Fantasy Tracker is a web app to optimize daily player picks for Fantasy (NBA Fantasy), a French NBA fantasy game. Users pick one NBA player per night and earn points based on their performance. The 30-day rule prevents picking the same player twice within 30 days.
 
+You are a senior dev that aims simplicity and maintainability in the code
+
 **Fantasy Score Formula:**
 ```
 POSITIVE: PTS + REB + AST + STL + BLK + FGM + 3PM + FTM
@@ -109,13 +111,15 @@ frontend/
 │       └── page.tsx        # Player detail page
 ├── components/
 │   ├── PlayersView.tsx     # Client component: snapshot fetching, filtering, sorting
-│   ├── PlayersTable.tsx    # Table display with skeleton loader
-│   ├── PlayerFilters.tsx   # Sort/filter controls including game filter
+│   ├── PlayersTable.tsx    # Table display with clickable sortable headers
+│   ├── PlayerFilters.tsx   # Filter controls (game, availability)
 │   └── ...                 # Other components
 └── lib/
     ├── api.ts              # API client functions
     ├── snapshot.ts         # Client-side snapshot filtering utilities
-    └── picks.ts            # localStorage pick management
+    ├── picks.ts            # localStorage pick management
+    ├── players.ts          # Sort/filter logic, SortOption type, parseSort
+    └── statColumns.ts      # STAT_COLUMNS config (single source of truth for stat columns)
 ```
 
 **Routing**: Uses Next.js App Router (file-based routing)
@@ -218,6 +222,10 @@ The app uses a **fetch-once, filter-client-side** pattern:
 - Skeleton loader displays during initial data fetch
 
 Next.js App Router uses Server Components by default. Client-side fetching is done in components marked with `'use client'` directive.
+
+### Players Table Stat Columns
+
+Numeric columns are driven by `STAT_COLUMNS` in `lib/statColumns.ts` — the same `accessor` powers both sorting and rendering. To add a column, append one entry there and one literal to `SortField` in `lib/players.ts`.
 
 ### Fantasy Score Calculation
 
