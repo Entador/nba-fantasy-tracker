@@ -107,10 +107,10 @@ export default function PlayerDetailPage() {
 
   const pickedGames = picks.filter((p) => p.playerId === playerId);
   const pickedDates = new Set(pickedGames.map((p) => p.date));
-  const playedGames = data.recent_games.filter((g) => !g.dnp);
-  const gamesWhenPicked = playedGames.filter((g) =>
-    pickedDates.has(g.game_date)
-  );
+  const playedGames = data.recent_games
+    .filter((g) => !g.dnp)
+    .map((g) => ({ ...g, picked: pickedDates.has(g.game_date) }));
+  const gamesWhenPicked = playedGames.filter((g) => g.picked);
   const avgPicked =
     gamesWhenPicked.length > 0
       ? (
@@ -271,7 +271,7 @@ export default function PlayerDetailPage() {
                 {data.recent_games.map((game, index) => (
                   <TableRow
                     key={index}
-                    className={game.picked ? "bg-muted/50" : ""}
+                    className={pickedDates.has(game.game_date) ? "bg-muted/50" : ""}
                   >
                     <TableCell className="font-medium py-1.5 whitespace-nowrap">
                       {new Date(game.game_date).toLocaleDateString("en-US", {

@@ -40,7 +40,6 @@ export interface PlayerStats {
     fantasy_score: number;
     minutes: number;
     dnp: boolean;
-    picked: boolean;
   }>;
   avg_fantasy: number;
   best_score: number;

@@ -120,7 +120,6 @@ def get_player_stats(player_id: int, db: Session = Depends(get_db)):
                 'fantasy_score': fantasy_record.fantasy_score if fantasy_record and not dnp else 0,
                 'minutes': fantasy_record.minutes if fantasy_record else 0,
                 'dnp': dnp,
-                'picked': False  # Frontend handles pick tracking
             })
 
         # Calculate average from games where player actually played

@@ -1,3 +1,6 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -5,25 +8,9 @@ from routers import players, snapshot
 from services.cache import app_cache
 from models.database import SessionLocal, get_db
 
-app = FastAPI(
-    title="NBA Fantasy Tracker API",
-    description="API for tracking Fantasy (NBA Fantasy) player picks",
-    version="1.0.0"
-)
 
-# Configure CORS - allow all origins (read-only public API, no auth)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Pre-load static data on app startup to reduce database queries"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         app_cache.load_schedule(db)
@@ -33,6 +20,31 @@ async def startup_event():
         print("App will continue but without cached data")
     finally:
         db.close()
+    yield
+
+
+app = FastAPI(
+    title="NBA Fantasy Tracker API",
+    description="API for tracking Fantasy (NBA Fantasy) player picks",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# CORS: ALLOWED_ORIGINS controls which origins can send credentialed requests (cookies).
+# In dev, default to "*" (no credentials). In prod, set ALLOWED_ORIGINS to the exact
+# frontend URL (e.g. "https://ttfl.vercel.app") and ALLOW_CREDENTIALS=true.
+# Mobile clients are native apps and are not subject to CORS.
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",")]
+ALLOW_CREDENTIALS = os.getenv("ALLOW_CREDENTIALS", "false").lower() == "true"
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=ALLOW_CREDENTIALS,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Include routers
@@ -42,26 +54,17 @@ app.include_router(snapshot.router, prefix="/api", tags=["snapshot"])
 
 @app.get("/")
 def read_root():
-    """Health check endpoint"""
     return {"status": "ok", "message": "NBA Fantasy Tracker API is running"}
 
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint"""
     return {"status": "healthy"}
 
 
 @app.post("/admin/refresh-cache")
 def refresh_cache(db: Session = Depends(get_db)):
-    """
-    Refresh the application cache (games, teams, players).
-
-    Use this endpoint when:
-    - Games are postponed or rescheduled
-    - New games or players are added to the database
-    - After running daily_update.py script (to refresh injury status)
-    """
+    """Refresh the in-memory cache. Call after running daily_update.py."""
     try:
         app_cache.load_schedule(db)
         return {
@@ -70,10 +73,7 @@ def refresh_cache(db: Session = Depends(get_db)):
             "games_count": sum(len(games) for games in app_cache.games_by_date.values()),
             "dates_count": len(app_cache.games_by_date),
             "teams_count": len(app_cache.teams_by_id),
-            "players_count": len(app_cache.players_by_id)
+            "players_count": len(app_cache.players_by_id),
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to refresh cache: {str(e)}"
-        }
+        return {"status": "error", "message": f"Failed to refresh cache: {str(e)}"}
