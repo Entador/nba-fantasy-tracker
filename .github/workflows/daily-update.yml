@@ -3,7 +3,7 @@ name: Daily Database Update
 on:
   schedule:
     # Run full update daily at 8:00 UTC (9:00 AM Paris time)
-    - cron: '0 8 * * *'
+    - cron: '0 7 * * *'
     # Run injury updates before NBA game windows
     - cron: '0 12 * * *'
     - cron: '0 15 * * *'
