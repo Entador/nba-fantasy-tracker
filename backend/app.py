@@ -1,9 +1,12 @@
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+
+from auth.router import router as auth_router
 from routers import players, snapshot
 from services.cache import app_cache
 from models.database import SessionLocal, get_db
@@ -47,7 +50,17 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def add_process_time_header(request, call_next):
+    start_time = datetime.now()
+    response = await call_next(request)
+    process_time = (datetime.now() - start_time).total_seconds()
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+
 # Include routers
+app.include_router(auth_router)
 app.include_router(players.router, prefix="/api", tags=["players"])
 app.include_router(snapshot.router, prefix="/api", tags=["snapshot"])
 

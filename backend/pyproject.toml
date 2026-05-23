@@ -20,6 +20,9 @@ dependencies = [
     "pdfplumber (>=0.11.9,<0.12.0)",
     "alembic (>=1.18.4,<2.0.0)",
     "resend (>=2.30.1,<3.0.0)",
+    "python-multipart (>=0.0.29,<0.0.30)",
+    "pyjwt (>=2.13.0,<3.0.0)",
+    "pwdlib[argon2] (>=0.3.0,<0.4.0)",
 ]
 
 [tool.poetry]
