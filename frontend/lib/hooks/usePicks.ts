@@ -1,6 +1,6 @@
 import useSWR from 'swr';
 
-import { BackendPick, createPick, deletePick, getPicks } from '@/lib/api';
+import { BackendPick, createPick, createPicksBatch, deletePick, getPicks } from '@/lib/api';
 import { Pick } from '@/lib/picks';
 
 const KEY = '/api/picks';
@@ -70,20 +70,14 @@ export function usePicks() {
     );
   }
 
-  /** Bulk import (e.g. TTFL history). Picks that violate eligibility are counted as skipped. */
+  /**
+   * Bulk import (e.g. TTFL history) in a single request. Authoritative: overwrites
+   * clashing nights and bypasses eligibility. `skipped` counts unknown player ids.
+   */
   async function importMany(newPicks: { playerId: number; date: string }[]) {
-    let imported = 0;
-    let skipped = 0;
-    for (const p of newPicks) {
-      try {
-        await createPick(p.playerId, p.date);
-        imported++;
-      } catch {
-        skipped++;
-      }
-    }
+    const result = await createPicksBatch(newPicks);
     await mutate();
-    return { imported, skipped };
+    return result;
   }
 
   return { picks, isLoading, error, setPick, skip, clearPick, importMany, mutate };

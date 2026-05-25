@@ -16,6 +16,20 @@ class PickCreate(BaseModel):
     game_date: date
 
 
+class PickBatchCreate(BaseModel):
+    """Bulk import of picks (e.g. TTFL history). Authoritative: overwrites clashes
+    and bypasses eligibility, since the imported history is the source of truth."""
+
+    picks: list[PickCreate]
+
+
+class PickImportResult(BaseModel):
+    """imported = picks stored; skipped = items whose player_id was unknown."""
+
+    imported: int
+    skipped: int
+
+
 class PickRead(BaseModel):
     """A stored pick. Owner is implicit (the caller), so it is never exposed.
 

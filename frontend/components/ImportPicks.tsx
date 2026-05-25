@@ -137,8 +137,8 @@ export default function ImportPicks({
               <li>Click "Import Picks" to add them to your local history</li>
             </ol>
             <p className="text-xs text-muted-foreground mt-2">
-              Note: Only picks from the last 30 days will be imported to
-              maintain eligibility tracking.
+              Note: Importing is authoritative — it overwrites any existing pick
+              on the same date with your TTFL history.
             </p>
           </div>
 
@@ -183,10 +183,7 @@ export default function ImportPicks({
                         Imported {result.imported} pick
                         {result.imported !== 1 ? "s" : ""}
                         {result.skipped > 0 && (
-                          <>
-                            {" "}
-                            ({result.skipped} skipped as outside 30-day window)
-                          </>
+                          <> ({result.skipped} skipped — player not found)</>
                         )}
                       </p>
                       {result.unmatched.length > 0 && (

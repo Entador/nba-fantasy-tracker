@@ -182,6 +182,26 @@ export async function deletePick(id: number): Promise<void> {
   await fetchAPI<void>(`/api/picks/${id}`, { method: 'DELETE' });
 }
 
+export interface PickImportResult {
+  imported: number;
+  skipped: number; // player_id not found in the backend (matched names should be 0)
+}
+
+/**
+ * Bulk import picks in a single request. Authoritative (TTFL history is the source
+ * of truth): bypasses eligibility and overwrites any existing pick on the same night.
+ */
+export async function createPicksBatch(
+  picks: { playerId: number | null; date: string }[]
+): Promise<PickImportResult> {
+  return fetchAPI<PickImportResult>('/api/picks/batch', {
+    method: 'POST',
+    body: JSON.stringify({
+      picks: picks.map((p) => ({ player_id: p.playerId, game_date: p.date })),
+    }),
+  });
+}
+
 // Auth API — the JWT lives in an HttpOnly cookie set by the backend, so there is
 // no token to store or attach here; it rides along on credentials: 'include'.
 export interface AuthUser {

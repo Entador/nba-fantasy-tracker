@@ -9,7 +9,7 @@ from models import Owner
 from models.database import get_db
 from picks import service
 from picks.dependencies import get_current_owner
-from picks.schemas import PickCreate, PickRead
+from picks.schemas import PickBatchCreate, PickCreate, PickImportResult, PickRead
 
 router = APIRouter(prefix="/api/picks", tags=["picks"])
 
@@ -25,6 +25,16 @@ def list_picks(owner: OwnerDep, db: DbDep) -> list[PickRead]:
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_pick(payload: PickCreate, owner: OwnerDep, db: DbDep) -> PickRead:
     return service.create_pick(db, owner, payload.player_id, payload.game_date)
+
+
+@router.post("/batch", status_code=status.HTTP_201_CREATED)
+def create_picks_batch(
+    payload: PickBatchCreate, owner: OwnerDep, db: DbDep
+) -> PickImportResult:
+    imported, skipped = service.create_picks_batch(
+        db, owner, [(p.player_id, p.game_date) for p in payload.picks]
+    )
+    return PickImportResult(imported=imported, skipped=skipped)
 
 
 @router.delete("/{pick_id}", status_code=status.HTTP_204_NO_CONTENT)

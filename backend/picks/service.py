@@ -118,6 +118,60 @@ def create_pick(
     return _to_read(pick, nba_player_id)
 
 
+def create_picks_batch(
+    db: Session, owner: Owner, items: list[tuple[int | None, date]]
+) -> tuple[int, int]:
+    """Authoritative bulk import (TTFL history is the source of truth).
+
+    Bypasses eligibility (the 30-day / playoff rules) and overwrites any existing
+    pick on the same night — the imported history always wins. One commit, not N,
+    so a full-season import is a single round-trip.
+
+    Returns (imported, skipped); skipped counts items whose player_id doesn't match a
+    known player (None player_id is a valid skip and is always imported).
+    """
+    if not items:
+        return 0, 0
+
+    # Resolve every referenced player in one query (skips reference no player).
+    wanted_ids = {pid for pid, _ in items if pid is not None}
+    internal_by_nba = {
+        nba_id: internal_id
+        for internal_id, nba_id in db.query(Player.id, Player.nba_player_id)
+        .filter(Player.nba_player_id.in_(wanted_ids))
+        .all()
+    }
+
+    # Pre-load existing picks for the affected nights so clashes overwrite in place.
+    affected_dates = {game_date for _, game_date in items}
+    by_date = {
+        pick.game_date: pick
+        for pick in db.query(Pick).filter(
+            Pick.owner_id == owner.id, Pick.game_date.in_(affected_dates)
+        )
+    }
+
+    imported = 0
+    skipped = 0
+    for nba_player_id, game_date in items:
+        if nba_player_id is not None and nba_player_id not in internal_by_nba:
+            skipped += 1  # unknown player id — nothing to store
+            continue
+        internal_id = internal_by_nba.get(nba_player_id)
+
+        pick = by_date.get(game_date)
+        if pick:
+            pick.player_id = internal_id  # overwrite the clashing night
+        else:
+            pick = Pick(owner_id=owner.id, player_id=internal_id, game_date=game_date)
+            db.add(pick)
+            by_date[game_date] = pick  # later items for this night overwrite earlier ones
+        imported += 1
+
+    db.commit()
+    return imported, skipped
+
+
 def _to_read(pick: Pick, nba_player_id: int | None) -> PickRead:
     """Serialize a Pick, exposing the NBA player id rather than the internal FK."""
     return PickRead(

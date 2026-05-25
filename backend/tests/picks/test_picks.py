@@ -109,6 +109,48 @@ def test_regular_season_pick_does_not_block_playoff_pick(make_client, players, p
     assert pick(c, players[0], PLAYOFF_START).status_code == 201
 
 
+# --- Batch import: authoritative, bypasses eligibility, overwrites clashes ---
+
+def batch(client, items):
+    """items: list of (player_id | None, date)."""
+    return client.post(
+        "/api/picks/batch",
+        json={"picks": [{"player_id": pid, "game_date": d.isoformat()} for pid, d in items]},
+    )
+
+
+def test_batch_imports_all_picks(make_client, players):
+    c = make_client()
+    r = batch(c, [(players[0], D), (players[1], D + timedelta(days=1))])
+    assert r.status_code == 201
+    assert r.json() == {"imported": 2, "skipped": 0}
+    assert len(c.get("/api/picks").json()) == 2
+
+
+def test_batch_bypasses_30_day_rule(make_client, players):
+    c = make_client()
+    # Same player twice within 30 days — rejected one-by-one, allowed in an import.
+    r = batch(c, [(players[0], D), (players[0], D + timedelta(days=5))])
+    assert r.json() == {"imported": 2, "skipped": 0}
+    assert len(c.get("/api/picks").json()) == 2
+
+
+def test_batch_overwrites_existing_pick(make_client, players):
+    c = make_client()
+    pick(c, players[0], D)  # pre-existing pick for the night
+    batch(c, [(players[1], D)])  # import overwrites it
+    listed = c.get("/api/picks").json()
+    assert len(listed) == 1
+    assert listed[0]["player_id"] == players[1]
+
+
+def test_batch_skips_unknown_player(make_client, players):
+    c = make_client()
+    r = batch(c, [(players[0], D), (999999, D + timedelta(days=1))])
+    assert r.json() == {"imported": 1, "skipped": 1}
+    assert len(c.get("/api/picks").json()) == 1
+
+
 # --- Delete + authorization ----------------------------------------------
 
 def test_delete_own_pick(make_client, players):
