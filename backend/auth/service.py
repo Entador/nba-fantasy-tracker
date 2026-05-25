@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from auth.security import DUMMY_HASH, verify_password
+from auth.security import DUMMY_HASH, get_password_hash, verify_password
 from models import User
 
 
@@ -12,6 +12,21 @@ def get_user_by_email(db: Session, email: str) -> User | None:
         .filter(User.email == email, User.deleted_at.is_(None))
         .first()
     )
+
+
+def create_user(db: Session, email: str, password: str) -> User:
+    """Create a password-backed user. is_verified stays False — email
+    verification is a separate, future step that doesn't gate login yet."""
+    user = User(
+        email=email,
+        hashed_password=get_password_hash(password),
+        is_active=True,
+        is_verified=False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
