@@ -1,6 +1,6 @@
 "use client";
 
-import { LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut, User } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -30,27 +30,25 @@ export default function AuthNav() {
     );
   }
 
-  const initial = user?.email?.[0]?.toUpperCase() ?? "?";
-
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
           aria-label="Account menu"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-sm transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          {initial}
+          <User className="h-5 w-5" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 p-0">
         <div className="flex items-center gap-3 border-b p-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
-            {initial}
-          </div>
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Signed in as</p>
-            <p className="truncate text-sm font-medium" title={user?.email ?? undefined}>
+            <p
+              className="truncate text-sm font-medium"
+              title={user?.email ?? undefined}
+            >
               {user?.email}
             </p>
           </div>
