@@ -4,6 +4,8 @@ from datetime import datetime
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
 
 from auth.router import router as auth_router
@@ -11,6 +13,7 @@ from picks.router import router as picks_router
 from players.router import router as players_router
 from snapshot.router import router as snapshot_router
 from core.cache import app_cache
+from core.rate_limit import limiter
 from models.database import SessionLocal, get_db
 
 
@@ -34,6 +37,12 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Rate limiting (slowapi): the limiter is applied per-route via decorators (see
+# auth/router.py). Register it on app state + a 429 handler. The handler returns a
+# normal response, so CORSMiddleware (added below) still attaches CORS headers.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS: ALLOWED_ORIGINS controls which origins can send credentialed requests (cookies).
 # In dev, default to "*" (no credentials). In prod, set ALLOWED_ORIGINS to the exact

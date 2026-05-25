@@ -17,6 +17,7 @@ from auth.dependencies import get_current_active_user
 from auth.schemas import Token, UserCreate, UserRead
 from auth.security import create_access_token
 from auth.service import authenticate_user, create_user, get_user_by_email
+from core.rate_limit import limiter
 from models import User
 from models.database import get_db
 from picks.dependencies import ANON_COOKIE_NAME
@@ -50,6 +51,7 @@ def _set_access_cookie(response: Response, user: User) -> str:
 
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")  # throttle signup spam, per client IP
 async def register(
     payload: UserCreate,
     request: Request,
@@ -69,6 +71,7 @@ async def register(
 
 
 @router.post("/token")
+@limiter.limit("10/minute")  # slow down password brute-force, per client IP
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     request: Request,

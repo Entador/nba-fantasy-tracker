@@ -14,7 +14,12 @@ from sqlalchemy.pool import StaticPool
 
 import models  # noqa: F401  registers every table on Base.metadata
 from app import app
+from core.rate_limit import limiter
 from models.database import Base, get_db
+
+# Tests register/login many times from a single host; the per-IP limits would
+# otherwise trip and fail the suite. Disable rate limiting for all tests.
+limiter.enabled = False
 
 
 @pytest.fixture
