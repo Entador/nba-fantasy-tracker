@@ -44,3 +44,20 @@ def client(db_session):
         yield TestClient(app)
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def make_client(db_session):
+    """Factory for fresh TestClients sharing one DB but separate cookie jars.
+
+    Lets a test act as two distinct guests/users (each gets its own anon cookie)
+    to verify one owner can't see or touch another's data.
+    """
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        yield lambda: TestClient(app)
+    finally:
+        app.dependency_overrides.clear()

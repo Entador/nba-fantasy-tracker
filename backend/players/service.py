@@ -19,6 +19,22 @@ def get_playoff_round(nba_game_id: str) -> int | None:
     return None
 
 
+def get_playoff_start_date(db: Session) -> date | None:
+    """Earliest playoff game date, or None if no playoff game is scheduled yet.
+
+    NBA playoff game IDs start with '004' (regular season is '002'). This mirrors
+    the playoff_start_date the snapshot endpoint exposes, so pick eligibility and
+    the UI agree on when playoff rules take over from the 30-day window.
+    """
+    row = (
+        db.query(Game.game_date)
+        .filter(Game.nba_game_id.startswith("004"))
+        .order_by(Game.game_date.asc())
+        .first()
+    )
+    return row[0] if row else None
+
+
 def batch_calculate_averages(
     db: Session,
     player_ids: list[int],
