@@ -17,6 +17,7 @@ class UserCreate(BaseModel):
 
     email: str
     password: str = Field(min_length=8)
+    remember_me: bool = True  # keep a freshly registered user signed in across restarts
 
     @field_validator("email")
     @classmethod

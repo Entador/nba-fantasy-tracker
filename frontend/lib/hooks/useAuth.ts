@@ -31,13 +31,13 @@ export function useAuth() {
     await Promise.all([mutate(), globalMutate(PICKS_KEY)]);
   }
 
-  async function login(email: string, password: string) {
-    await apiLogin(email, password);
+  async function login(email: string, password: string, rememberMe = false) {
+    await apiLogin(email, password, rememberMe);
     await refreshSession();
   }
 
-  async function register(email: string, password: string) {
-    await apiRegister(email, password);
+  async function register(email: string, password: string, rememberMe = true) {
+    await apiRegister(email, password, rememberMe);
     await refreshSession();
   }
 

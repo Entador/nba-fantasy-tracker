@@ -83,13 +83,14 @@ backend/
 │   ├── database.py         # SQLAlchemy engine, SessionLocal, get_db()
 │   └── __init__.py         # Team, Player, Game, FantasyScore, User, AnonIdentity,
 │                           #   Owner, Pick, UserDevice, NotificationPref/Log, Entitlement
-├── auth/                   # Auth domain (JWT password login)
-│   ├── router.py           # POST /auth/register, POST /token, GET /users/me
+├── auth/                   # Auth domain (JWT access token + refresh sessions)
+│   ├── router.py           # POST /auth/register, /token, /auth/refresh, /auth/logout, GET /users/me
 │   ├── service.py          # user create/authenticate
+│   ├── sessions.py         # refresh-session create/rotate/revoke ("remember me")
 │   ├── schemas.py          # Pydantic request/response models
-│   ├── security.py         # password hashing, JWT encode/decode
+│   ├── security.py         # password hashing, JWT + refresh-token (SHA-256) primitives
 │   ├── dependencies.py     # get_current_active_user
-│   └── config.py           # SECRET_KEY, token expiry
+│   └── config.py           # SECRET_KEY, access/refresh expiry, cookie settings
 ├── picks/                  # Picks domain (DB-backed, guest + user)
 │   ├── router.py           # GET/POST /api/picks, DELETE /api/picks/{id}
 │   ├── service.py          # upsert, eligibility (30-day + playoff), anon→user migration
@@ -130,6 +131,8 @@ back a top-level `routers/` or `services/` layer.
 - `POST /api/picks` - Upsert tonight's pick (one per owner per date; enforces eligibility)
 - `DELETE /api/picks/{id}` - Remove a pick
 - `POST /auth/register`, `POST /token`, `GET /users/me` - Email/password auth (JWT bearer)
+- `POST /auth/refresh` - Rotate the refresh session, mint a new short-lived access token (web auto-calls on 401)
+- `POST /auth/logout` - Revoke the current refresh session and clear both cookies
 
 ### Frontend Structure
 
@@ -207,6 +210,8 @@ Picks & identity (added in migration 0002):
 **owners** — pick-ownership abstraction: `id` (PK), `user_id` (FK, unique, nullable) XOR `identity_id` (FK anon_identities, unique, nullable). CHECK enforces exactly one is set.
 
 **picks** — `id` (PK), `owner_id` (FK owners), `player_id` (FK), `game_date`, `picked_at`. Unique on `(owner_id, game_date)` (one pick per night).
+
+**refresh_sessions** (migration 0004) — revocable login sessions for "remember me": `id` (PK), `user_id` (FK), `token_hash` (SHA-256 of the refresh token; the raw token lives only in the client cookie), `persistent` (remember-me flag → persistent vs session cookie), `issued_at`, `expires_at`, `last_used_at`, `revoked_at` (NULL = active), `user_agent`. Rotated on every `/auth/refresh`: the presented row is revoked and a new one issued (sliding expiry). MVP rotation only — no token-reuse/family detection yet.
 
 Also present for later months: `user_devices`, `notification_prefs`, `notification_log`, `entitlements`.
 

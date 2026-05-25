@@ -50,22 +50,58 @@ export interface PlayerStats {
 
 
 /**
+ * Try to renew the access token via the refresh cookie. Returns true on success.
+ *
+ * Deduped: concurrent 401s (snapshot + picks + /users/me all firing at once)
+ * must NOT each call /auth/refresh — the token rotates on every call, so the
+ * second would present an already-rotated token and fail. We share one in-flight
+ * promise so they all await the same single refresh.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
+/**
  * Fetch from API - works both server-side and client-side.
  * Server-side: uses cache: 'no-store' for fresh data
  * Client-side: standard fetch
+ *
+ * On a 401 (expired access token) it transparently refreshes once and retries,
+ * so a short-lived access token never surfaces as an error to the caller.
  */
-async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function fetchAPI<T>(
+  endpoint: string,
+  options?: RequestInit,
+  retry = true
+): Promise<T> {
   const url = `${API_URL}${endpoint}`;
 
   try {
     const response = await fetch(url, {
       ...options,
-      credentials: 'include', // send/receive the anon_id (and future auth) cookie
+      credentials: 'include', // send/receive the anon_id and auth cookies
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
       },
     });
+
+    if (response.status === 401 && retry && !endpoint.startsWith('/auth/')) {
+      if (await refreshSession()) return fetchAPI<T>(endpoint, options, false);
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
@@ -211,18 +247,34 @@ export interface AuthUser {
   is_verified: boolean;
 }
 
-export async function register(email: string, password: string): Promise<AuthUser> {
+export async function register(
+  email: string,
+  password: string,
+  rememberMe = true
+): Promise<AuthUser> {
   return fetchAPI<AuthUser>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, remember_me: rememberMe }),
   });
 }
 
-/** Log in. On success the backend sets the access_token cookie; nothing to store. */
-export async function login(email: string, password: string): Promise<void> {
+/**
+ * Log in. On success the backend sets the access_token + refresh_token cookies.
+ * rememberMe=false makes the refresh cookie a session cookie (cleared on browser
+ * close), so the user isn't kept signed in on a shared device.
+ */
+export async function login(
+  email: string,
+  password: string,
+  rememberMe = false
+): Promise<void> {
   // /token expects form-encoded data (OAuth2PasswordRequestForm), not JSON, and
   // names the email field "username". This header overrides fetchAPI's JSON default.
-  const body = new URLSearchParams({ username: email, password });
+  const body = new URLSearchParams({
+    username: email,
+    password,
+    remember_me: String(rememberMe),
+  });
   await fetchAPI<unknown>('/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -236,7 +288,12 @@ export async function logout(): Promise<void> {
 
 /** Current user, or null for guests (a 401 is the normal "not signed in" case). */
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  const res = await fetch(`${API_URL}/users/me`, { credentials: 'include' });
+  let res = await fetch(`${API_URL}/users/me`, { credentials: 'include' });
+  // Access token may have expired while a valid refresh session remains (e.g. the
+  // user returns the next day) — try one refresh before falling back to "guest".
+  if (res.status === 401 && (await refreshSession())) {
+    res = await fetch(`${API_URL}/users/me`, { credentials: 'include' });
+  }
   if (!res.ok) return null;
   return res.json();
 }
