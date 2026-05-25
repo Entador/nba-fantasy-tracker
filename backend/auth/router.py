@@ -3,7 +3,7 @@
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -14,13 +14,24 @@ from auth.security import create_access_token
 from auth.service import authenticate_user, create_user, get_user_by_email
 from models import User
 from models.database import get_db
+from picks.dependencies import ANON_COOKIE_NAME
+from picks.service import migrate_anon_to_user
 
 router = APIRouter(tags=["auth"])
+
+
+def _claim_guest_picks(request: Request, response: Response, db: Session, user: User) -> None:
+    """Carry a guest's picks over to their account, then drop the spent anon cookie."""
+    anon_token = request.cookies.get(ANON_COOKIE_NAME)
+    if migrate_anon_to_user(db, anon_token, user):
+        response.delete_cookie(ANON_COOKIE_NAME)
 
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
 async def register(
     payload: UserCreate,
+    request: Request,
+    response: Response,
     db: Annotated[Session, Depends(get_db)],
 ) -> UserRead:
     # payload.email is already normalized (stripped + lowercased) by the schema.
@@ -29,12 +40,16 @@ async def register(
             status_code=status.HTTP_409_CONFLICT,
             detail="An account with this email already exists",
         )
-    return create_user(db, email=payload.email, password=payload.password)
+    user = create_user(db, email=payload.email, password=payload.password)
+    _claim_guest_picks(request, response, db, user)
+    return user
 
 
 @router.post("/token")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    request: Request,
+    response: Response,
     db: Annotated[Session, Depends(get_db)],
 ) -> Token:
     # OAuth2PasswordRequestForm always names the field "username"; we treat it as
@@ -47,6 +62,7 @@ async def login(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    _claim_guest_picks(request, response, db, user)
     access_token = create_access_token(
         data={"sub": str(user.id)},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),

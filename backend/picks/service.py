@@ -4,7 +4,7 @@ Every read/write is scoped to a single Owner — that scoping IS the authorizati
 boundary (one owner can never see or touch another's picks).
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -116,6 +116,55 @@ def delete_pick(db: Session, owner: Owner, pick_id: int) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pick not found")
     db.delete(pick)
     db.commit()
+
+
+def migrate_anon_to_user(db: Session, anon_token: str | None, user: User) -> bool:
+    """Move a guest's picks onto their account after sign-in.
+
+    Returns True if a migration happened (so the caller can clear the anon cookie).
+    Three cases:
+    - no anon identity / no anon picks owner -> nothing to do.
+    - user has no owner yet -> reassign the anon owner wholesale; picks follow for
+      free (no rows move), and the identity is retired.
+    - user already has an owner -> merge: move anon picks onto the user's owner,
+      but keep the user's existing pick on any night both hold (uq_pick_owner_date
+      forbids two picks per date).
+    """
+    if not anon_token:
+        return False
+
+    identity = (
+        db.query(AnonIdentity)
+        .filter(AnonIdentity.token == anon_token, AnonIdentity.deleted_at.is_(None))
+        .first()
+    )
+    if identity is None or identity.owner is None:
+        return False
+    anon_owner = identity.owner
+
+    if user.owner is None:
+        anon_owner.user_id = user.id
+        anon_owner.identity_id = None
+        identity.deleted_at = datetime.now(timezone.utc)
+        db.commit()
+        return True
+
+    user_owner = user.owner
+    owned_dates = {
+        d for (d,) in db.query(Pick.game_date).filter(Pick.owner_id == user_owner.id)
+    }
+    for pick in list(anon_owner.picks):
+        if pick.game_date in owned_dates:
+            db.delete(pick)  # the signed-in account's pick for that night wins
+        else:
+            # Reassign via the relationship (not the FK column) so the pick leaves
+            # anon_owner.picks; otherwise deleting anon_owner would null its owner_id.
+            pick.owner = user_owner
+    db.flush()
+    db.delete(anon_owner)
+    identity.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    return True
 
 
 def _is_eligible(

@@ -144,3 +144,55 @@ def test_two_users_are_isolated(make_client, players):
     a.post("/api/picks", json={"player_id": players[0], "game_date": D.isoformat()}, headers=ha)
     assert len(a.get("/api/picks", headers=ha).json()) == 1
     assert b.get("/api/picks", headers=hb).json() == []
+
+
+# --- Guest -> account migration on sign-in -------------------------------
+
+def post_pick(client, player_id, game_date, headers=None):
+    return client.post(
+        "/api/picks",
+        json={"player_id": player_id, "game_date": game_date.isoformat()},
+        headers=headers,
+    )
+
+
+def test_register_claims_guest_picks(make_client, players):
+    c = make_client()
+    pick(c, players[0])  # made as a guest, under an anon cookie
+    headers = register_and_login(c, "new@example.com")
+
+    listed = c.get("/api/picks", headers=headers).json()
+    assert [p["player_id"] for p in listed] == [players[0]]
+    assert "anon_id" not in c.cookies  # spent cookie cleared on migration
+
+
+def test_login_merges_guest_picks_into_existing_account(make_client, players):
+    owner = make_client()
+    ho = register_and_login(owner, "owner@example.com")
+    post_pick(owner, players[0], D, headers=ho)  # account already has a pick
+
+    guest = make_client()
+    post_pick(guest, players[1], D + timedelta(days=5))  # guest picks a different night
+    token = guest.post("/token", data={"username": "owner@example.com", "password": "password123"})
+    hg = {"Authorization": f"Bearer {token.json()['access_token']}"}
+
+    listed = guest.get("/api/picks", headers=hg).json()
+    assert {(p["player_id"], p["game_date"]) for p in listed} == {
+        (players[0], D.isoformat()),
+        (players[1], (D + timedelta(days=5)).isoformat()),
+    }
+
+
+def test_migration_keeps_account_pick_on_conflicting_night(make_client, players):
+    owner = make_client()
+    ho = register_and_login(owner, "owner@example.com")
+    post_pick(owner, players[0], D, headers=ho)
+
+    guest = make_client()
+    post_pick(guest, players[1], D)  # same night as the account's pick
+    token = guest.post("/token", data={"username": "owner@example.com", "password": "password123"})
+    hg = {"Authorization": f"Bearer {token.json()['access_token']}"}
+
+    listed = guest.get("/api/picks", headers=hg).json()
+    assert len(listed) == 1
+    assert listed[0]["player_id"] == players[0]  # account's pick wins
