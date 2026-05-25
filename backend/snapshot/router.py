@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from models.database import get_db
 from models import AppMetadata
-from services.cache import app_cache
-from services.player_stats import batch_calculate_averages, get_playoff_round
+from core.cache import app_cache
+from players.service import batch_calculate_averages, get_playoff_round
 
 import traceback
 

@@ -40,10 +40,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from models.database import SessionLocal
 from models import Team, Player, Game, FantasyScore, AppMetadata
-from services.client import NBAClient
-from services.fantasy import calculate_fantasy_score
-from services.injuries import update_player_injuries
-from services.injuries_nba import update_player_injuries_nba
+from ingestion.client import NBAClient
+from core.fantasy import calculate_fantasy_score
+from ingestion.injuries import update_player_injuries
+from ingestion.injuries_nba import update_player_injuries_nba
 
 nba_client = NBAClient()
 

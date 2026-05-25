@@ -9,7 +9,7 @@ import json
 import unicodedata
 import httpx
 from sqlalchemy.orm import Session
-from services.utils import normalize_name
+from ingestion.utils import normalize_name
 from models import Team, Player
 
 

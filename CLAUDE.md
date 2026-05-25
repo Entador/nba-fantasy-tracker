@@ -72,25 +72,46 @@ pnpm lint
 
 ### Backend Structure
 
+Organized **by feature/domain**, not by technical layer. Each domain owns its
+router, service, schemas, etc. in one package. Cross-cutting logic lives in
+`core/` (shared) and `ingestion/` (NBA data fetching, used by scripts).
+
 ```
 backend/
 ├── app.py                  # FastAPI app, CORS config, router registration
 ├── models/
 │   ├── database.py         # SQLAlchemy engine, SessionLocal, get_db()
-│   └── __init__.py         # Player, Game, Team, FantasyScore models
-├── routers/
-│   ├── players.py          # GET /api/players/tonight, GET /api/players/{id}/stats
-│   └── games.py            # POST /api/games/pick, GET /api/games/history
-├── services/
-│   ├── fantasy.py             # calculate_fantasy_score(), calculate_average_fantasy_score()
-│   ├── nba_api.py          # NBA API wrapper functions (used by scripts)
+│   └── __init__.py         # Player, Game, Team, FantasyScore, User models
+├── auth/                   # Auth domain (JWT password login)
+│   ├── router.py           # /auth/register, /token, /users/me
+│   ├── service.py          # user create/authenticate
+│   ├── schemas.py          # Pydantic request/response models
+│   ├── security.py         # password hashing, JWT encode/decode
+│   ├── dependencies.py     # get_current_active_user
+│   └── config.py           # SECRET_KEY, token expiry
+├── players/                # Players domain
+│   ├── router.py           # GET /api/players/all, GET /api/players/{id}/stats
+│   └── service.py          # batch_calculate_averages(), get_playoff_round()
+├── snapshot/               # Snapshot domain (read view over players/games)
+│   └── router.py           # GET /api/snapshot  (imports players.service)
+├── core/                   # Shared, cross-domain logic
+│   ├── fantasy.py          # calculate_fantasy_score()
+│   └── cache.py            # in-memory app_cache (schedule/teams/players)
+├── ingestion/              # NBA data fetching (used by scripts, not request path)
+│   ├── client.py           # NBAClient — nba_api wrapper
 │   ├── injuries_nba.py     # Parse official NBA injury report PDFs (default source)
-│   └── injuries.py         # Fetch injury data from ESPN (fallback, INJURY_SOURCE=espn)
+│   ├── injuries.py         # Fetch injury data from ESPN (fallback, INJURY_SOURCE=espn)
+│   ├── email.py            # Resend email service
+│   └── utils.py            # normalize_name(), shared helpers
 └── scripts/
     ├── daily_update.py     # Automated database updates (runs via GitHub Actions)
     ├── populate_db.py      # Initial database population
     └── *.py                # Other maintenance scripts
 ```
+
+**Adding a new domain** (e.g. `picks/`): create a package with `router.py` +
+`service.py` (+ `schemas.py`), then register its router in `app.py`. Don't add
+back a top-level `routers/` or `services/` layer.
 
 **Key API Endpoints:**
 - `GET /api/snapshot` - **Primary endpoint**: Returns entire season data (all players, games, teams) in one response for client-side filtering (30 KB)
@@ -205,7 +226,7 @@ Some endpoints use `get_optional_db()` to work without a database (API-only mode
 
 ### In-Memory Cache
 
-The backend pre-loads static/semi-static data on startup (`services/cache.py`):
+The backend pre-loads static/semi-static data on startup (`core/cache.py`):
 - **Cached**: Game schedules, teams, player rosters (reduces DB queries)
 - **Not cached**: Fantasy scores and averages (queried from DB as they change frequently)
 - Cache is refreshed by redeploying after daily updates
@@ -230,7 +251,7 @@ Numeric columns are driven by `STAT_COLUMNS` in `lib/statColumns.ts` — the sam
 
 ### Fantasy Score Calculation
 
-Always use `services.fantasy.calculate_fantasy_score(box_score)` for consistency. The function handles missing/None values gracefully with `.get()` and `or 0` fallbacks.
+Always use `core.fantasy.calculate_fantasy_score(box_score)` for consistency. The function handles missing/None values gracefully with `.get()` and `or 0` fallbacks.
 
 ## Next.js & React Best Practices
 

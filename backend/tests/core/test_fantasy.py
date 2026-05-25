@@ -1,4 +1,4 @@
-from services.fantasy import calculate_fantasy_score
+from core.fantasy import calculate_fantasy_score
 
 
 def test_calculate_fantasy_score_when_empty_box_then_zero():

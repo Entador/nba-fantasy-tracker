@@ -1,3 +1,4 @@
+
 import traceback
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -6,7 +7,7 @@ from sqlalchemy import or_
 
 from models.database import get_db
 from models import Game, FantasyScore
-from services.cache import app_cache
+from core.cache import app_cache
 
 router = APIRouter()
 

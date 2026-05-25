@@ -32,7 +32,7 @@ from nba_api.stats.static import teams as nba_teams
 
 from models.database import SessionLocal, engine, Base
 from models import Team, Player, Game
-from services.client import NBAClient
+from ingestion.client import NBAClient
 
 nba_client = NBAClient()
 
