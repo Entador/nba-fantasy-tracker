@@ -10,6 +10,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from models import AnonIdentity, Owner, Pick, Player, User
+from picks.schemas import PickRead
 from players.service import get_playoff_start_date
 
 # Regular season: the same player cannot be picked twice within 30 days.
@@ -63,45 +64,68 @@ def get_or_create_owner_for_anon_identity(db: Session, identity: AnonIdentity) -
 
 
 def list_picks(db: Session, owner: Owner) -> list[Pick]:
-    return (
-        db.query(Pick)
+    rows = (
+        db.query(Pick, Player.nba_player_id)
+        .outerjoin(Player, Pick.player_id == Player.id)  # outer: skips have no player
         .filter(Pick.owner_id == owner.id)
         .order_by(Pick.game_date.desc())
         .all()
     )
+    return [_to_read(pick, nba_player_id) for pick, nba_player_id in rows]
 
 
-def create_pick(db: Session, owner: Owner, player_id: int, game_date: date) -> Pick:
+def create_pick(
+    db: Session, owner: Owner, nba_player_id: int | None, game_date: date
+) -> PickRead:
     """Create or replace this owner's pick for game_date.
 
-    Re-picking the same night replaces the player (TTFL lets you change your pick
-    before the deadline); the 30-day rule and player existence are enforced first.
+    The API speaks nba_player_id (like the rest of the app); we resolve it to the
+    internal players.id for storage. Re-picking the same night replaces the player
+    (TTFL lets you change your pick before the deadline); the 30-day rule and player
+    existence are enforced first.
+
+    nba_player_id is None records a skip: no player to validate and no eligibility to
+    check — it just claims the night's slot so the forgotten-pick reminder skips it.
     """
-    if not db.query(Player).filter(Player.id == player_id).first():
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Player not found")
+    player = None
+    if nba_player_id is not None:
+        player = db.query(Player).filter(Player.nba_player_id == nba_player_id).first()
+        if player is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Player not found")
 
-    playoff_start = get_playoff_start_date(db)
-    if not _is_eligible(db, owner, player_id, game_date, playoff_start):
-        detail = (
-            "Player already picked this playoffs"
-            if playoff_start is not None
-            else f"Player already picked within {ELIGIBILITY_WINDOW_DAYS} days"
-        )
-        raise HTTPException(status.HTTP_409_CONFLICT, detail)
+        playoff_start = get_playoff_start_date(db)
+        if not _is_eligible(db, owner, player.id, game_date, playoff_start):
+            detail = (
+                "Player already picked this playoffs"
+                if playoff_start is not None
+                else f"Player already picked within {ELIGIBILITY_WINDOW_DAYS} days"
+            )
+            raise HTTPException(status.HTTP_409_CONFLICT, detail)
 
+    internal_id = player.id if player else None
     pick = (
         db.query(Pick)
         .filter(Pick.owner_id == owner.id, Pick.game_date == game_date)
         .first()
     )
     if pick:
-        pick.player_id = player_id  # change tonight's pick
+        pick.player_id = internal_id  # change tonight's pick (or convert to/from a skip)
     else:
-        pick = Pick(owner_id=owner.id, player_id=player_id, game_date=game_date)
+        pick = Pick(owner_id=owner.id, player_id=internal_id, game_date=game_date)
         db.add(pick)
     db.commit()
     db.refresh(pick)
-    return pick
+    return _to_read(pick, nba_player_id)
+
+
+def _to_read(pick: Pick, nba_player_id: int | None) -> PickRead:
+    """Serialize a Pick, exposing the NBA player id rather than the internal FK."""
+    return PickRead(
+        id=pick.id,
+        player_id=nba_player_id,
+        game_date=pick.game_date,
+        picked_at=pick.picked_at,
+    )
 
 
 def delete_pick(db: Session, owner: Owner, pick_id: int) -> None:

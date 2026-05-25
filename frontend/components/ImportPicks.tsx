@@ -8,8 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { usePicks } from "@/lib/hooks/usePicks";
 import { parseAndMatchTTFLData } from "@/lib/import";
-import { importPicks } from "@/lib/picks";
 import { AlertCircle, CheckCircle2, Upload, X } from "lucide-react";
 import { useState } from "react";
 
@@ -22,6 +22,7 @@ export default function ImportPicks({
   onImportComplete,
   onClose,
 }: ImportPicksProps) {
+  const { importMany } = usePicks();
   const [tsvData, setTsvData] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
@@ -62,8 +63,10 @@ export default function ImportPicks({
         return;
       }
 
-      // Import picks to localStorage
-      const { imported, skipped } = importPicks(picks);
+      // Persist matched picks to the backend
+      const { imported, skipped } = await importMany(
+        picks.map((p) => ({ playerId: p.playerId, date: p.date }))
+      );
 
       setResult({
         success: true,

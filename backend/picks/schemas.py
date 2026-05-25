@@ -6,18 +6,25 @@ from pydantic import BaseModel, ConfigDict
 
 
 class PickCreate(BaseModel):
-    """Create (or change) the pick for a given night."""
+    """Create (or change) the pick for a given night.
 
-    player_id: int
+    player_id = None records a deliberate skip (the night is acknowledged with no
+    pick) so the forgotten-pick reminder stops nagging.
+    """
+
+    player_id: int | None = None
     game_date: date
 
 
 class PickRead(BaseModel):
-    """A stored pick. Owner is implicit (the caller), so it is never exposed."""
+    """A stored pick. Owner is implicit (the caller), so it is never exposed.
+
+    player_id is None for a skipped night.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    player_id: int
+    player_id: int | None
     game_date: date
     picked_at: datetime | None

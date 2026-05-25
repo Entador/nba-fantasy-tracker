@@ -81,14 +81,20 @@ backend/
 ├── app.py                  # FastAPI app, CORS config, router registration
 ├── models/
 │   ├── database.py         # SQLAlchemy engine, SessionLocal, get_db()
-│   └── __init__.py         # Player, Game, Team, FantasyScore, User models
+│   └── __init__.py         # Team, Player, Game, FantasyScore, User, AnonIdentity,
+│                           #   Owner, Pick, UserDevice, NotificationPref/Log, Entitlement
 ├── auth/                   # Auth domain (JWT password login)
-│   ├── router.py           # /auth/register, /token, /users/me
+│   ├── router.py           # POST /auth/register, POST /token, GET /users/me
 │   ├── service.py          # user create/authenticate
 │   ├── schemas.py          # Pydantic request/response models
 │   ├── security.py         # password hashing, JWT encode/decode
 │   ├── dependencies.py     # get_current_active_user
 │   └── config.py           # SECRET_KEY, token expiry
+├── picks/                  # Picks domain (DB-backed, guest + user)
+│   ├── router.py           # GET/POST /api/picks, DELETE /api/picks/{id}
+│   ├── service.py          # upsert, eligibility (30-day + playoff), anon→user migration
+│   ├── schemas.py          # Pydantic request/response models
+│   └── dependencies.py     # resolve_owner() from JWT user or anon_id cookie
 ├── players/                # Players domain
 │   ├── router.py           # GET /api/players/all, GET /api/players/{id}/stats
 │   └── service.py          # batch_calculate_averages(), get_playoff_round()
@@ -103,22 +109,27 @@ backend/
 │   ├── injuries.py         # Fetch injury data from ESPN (fallback, INJURY_SOURCE=espn)
 │   ├── email.py            # Resend email service
 │   └── utils.py            # normalize_name(), shared helpers
-└── scripts/
-    ├── daily_update.py     # Automated database updates (runs via GitHub Actions)
-    ├── populate_db.py      # Initial database population
-    └── *.py                # Other maintenance scripts
+├── scripts/
+│   ├── daily_update.py     # Automated database updates (runs via GitHub Actions)
+│   ├── populate_db.py      # Initial database population
+│   └── *.py                # Other maintenance scripts
+├── alembic/                # DB migrations (versions/ holds the migration chain)
+├── tests/                  # pytest suite, mirrors backend/ (auth/, picks/, core/, services/)
+└── ml/                     # Player-projection modeling (data/, training/, models/, notebooks/) — not on request path
 ```
 
-**Adding a new domain** (e.g. `picks/`): create a package with `router.py` +
+**Adding a new domain** (e.g. `devices/`): create a package with `router.py` +
 `service.py` (+ `schemas.py`), then register its router in `app.py`. Don't add
 back a top-level `routers/` or `services/` layer.
 
 **Key API Endpoints:**
 - `GET /api/snapshot` - **Primary endpoint**: Returns entire season data (all players, games, teams) in one response for client-side filtering (30 KB)
-- `GET /api/players/tonight` - Tonight's players with eligibility and avg Fantasy (legacy endpoint)
+- `GET /api/players/all` - All players (id, name, team)
 - `GET /api/players/{player_id}/stats` - Recent game history for a player
-- `POST /api/games/pick` - Record a player pick
-- `GET /api/games/history` - User's pick history
+- `GET /api/picks` - List the caller's picks (owner resolved from JWT user or `anon_id` cookie)
+- `POST /api/picks` - Upsert tonight's pick (one per owner per date; enforces eligibility)
+- `DELETE /api/picks/{id}` - Remove a pick
+- `POST /auth/register`, `POST /token`, `GET /users/me` - Email/password auth (JWT bearer)
 
 ### Frontend Structure
 
@@ -137,9 +148,12 @@ frontend/
 │   ├── PlayerFilters.tsx   # Filter controls (game, availability)
 │   └── ...                 # Other components
 └── lib/
-    ├── api.ts              # API client functions
+    ├── api.ts              # API client functions (fetch with credentials: 'include')
+    ├── hooks/
+    │   ├── useSnapshot.ts  # SWR hook for the season snapshot
+    │   └── usePicks.ts     # SWR hook for picks (server-backed, optimistic mutations)
     ├── snapshot.ts         # Client-side snapshot filtering utilities
-    ├── picks.ts            # localStorage pick management
+    ├── picks.ts            # Pure pick logic: eligibility + forgotten-date detection
     ├── players.ts          # Sort/filter logic, SortOption type, parseSort
     └── statColumns.ts      # STAT_COLUMNS config (single source of truth for stat columns)
 ```
@@ -166,19 +180,37 @@ The app uses a **snapshot-based architecture** optimized for instant navigation:
 2. **Backend Response**: Combines cached data (games, teams, players) + DB queries (Fantasy averages)
 3. **Client-Side Filtering**: Frontend filters snapshot by date in memory (instant, no API calls)
 4. **Date Navigation**: URL changes (`?date=YYYY-MM-DD`) trigger client-side filter only
-5. **Pick Management**: localStorage tracks picks, eligibility calculated client-side
+5. **Pick Management**: picks live in the DB (`/api/picks`); the `usePicks` SWR hook fetches
+   them (guest via the `anon_id` cookie, or the signed-in user) and mutates optimistically.
+   Eligibility is still computed client-side by the pure functions in `lib/picks.ts`.
 
 **Key Principle**: Backend serves data from in-memory cache + database, not from NBA API directly (except for optional demo mode).
 
 ### Database Schema
 
-**players**
-- `id` (PK), `nba_player_id` (unique), `name`, `team`
+Core NBA data:
 
-**games**
-- `id` (PK), `player_id` (FK), `game_date`, `opponent`, `is_home`, `is_back2back`, `fantasy_score`, `picked`
+**teams** — `id` (PK), `nba_team_id` (unique), `abbreviation`, `full_name`, record (`wins`/`losses`), tempo/defense (`pace`, `def_rating`), opponent stats (`opp_*`), `stats_updated_at`
 
-**Eligibility Query**: Player is eligible if no games with `picked=true` exist in the last 30 days.
+**players** — `id` (PK), `nba_player_id` (unique), `name`, `team_id` (FK teams), `is_active`, injury fields (`injury_status`, `injury_return_date`, `injury_details`)
+
+**games** — team-vs-team schedule rows: `id` (PK), `nba_game_id` (unique), `home_team_id`/`away_team_id` (FK teams), `game_date`, `status` (scheduled|live|final), `home_score`/`away_score`, `start_time_utc`
+
+**fantasy_scores** — per-player-per-game results: `id` (PK), `player_id` (FK), `game_id` (FK), `fantasy_score`, `minutes` (0/NULL = DNP). Unique on `(player_id, game_id)`.
+
+Picks & identity (added in migration 0002):
+
+**users** — `id` (PK), `email` (unique, nullable), `hashed_password`, `is_active`, `is_verified`, `is_superuser`, `created_at`, `deleted_at` (soft-delete)
+
+**anon_identities** — persistent guest identity: `id` (PK), `token` (UUID, stored in cookie), `last_seen`, `deleted_at`
+
+**owners** — pick-ownership abstraction: `id` (PK), `user_id` (FK, unique, nullable) XOR `identity_id` (FK anon_identities, unique, nullable). CHECK enforces exactly one is set.
+
+**picks** — `id` (PK), `owner_id` (FK owners), `player_id` (FK), `game_date`, `picked_at`. Unique on `(owner_id, game_date)` (one pick per night).
+
+Also present for later months: `user_devices`, `notification_prefs`, `notification_log`, `entitlements`.
+
+**Eligibility**: computed per-owner in `picks/service.py` — a player is ineligible if that owner already picked them within a 29-day backward window (in-season), or once during the playoffs (once playoff games are scheduled). Migration from guest to user reassigns the `owners` row (`identity_id` → `user_id`); pick rows are untouched.
 
 ## Daily Update Script
 
@@ -233,14 +265,14 @@ The backend pre-loads static/semi-static data on startup (`core/cache.py`):
 
 ### NBA API Rate Limiting
 
-The NBA API has rate limits and is only called by the daily update script and other maintenance scripts (not by the backend API during normal operation). The `nba_api.py` service includes a 0.6s delay between requests. The daily update script has retry logic with exponential backoff for timeout errors. If you get errors when running scripts manually, wait a few minutes before retrying.
+The NBA API has rate limits and is only called by the daily update script and other maintenance scripts (not by the backend API during normal operation). The `NBAClient` in `ingestion/client.py` includes a 0.6s delay between requests. The daily update script has retry logic with exponential backoff for timeout errors. If you get errors when running scripts manually, wait a few minutes before retrying.
 
 ### Frontend Data Fetching
 
 The app uses a **fetch-once, filter-client-side** pattern:
 - Single `GET /api/snapshot` call on page load fetches entire season data
 - Date navigation filters cached data in-browser (instant, no API calls)
-- localStorage manages picks and eligibility calculations
+- Picks come from `/api/picks` via the `usePicks` SWR hook; eligibility is computed client-side
 - Skeleton loader displays during initial data fetch
 
 Next.js App Router uses Server Components by default. Client-side fetching is done in components marked with `'use client'` directive.
@@ -295,18 +327,21 @@ Always use `core.fantasy.calculate_fantasy_score(box_score)` for consistency. Th
 ## Common Gotchas
 
 1. **Database connection**: If `DATABASE_URL` is invalid, app will fail to start. Check `.env` file.
-2. **No games on off-days**: `GET /api/players/tonight` returns `[]` when there are no NBA games scheduled.
+2. **No games on off-days**: the snapshot has no games for that date, so the dashboard renders an empty player list. Handle this case in the frontend filter.
 3. **Next.js caching**: App Router aggressively caches. Use `cache: 'no-store'` in fetch calls for live data.
 4. **SQLAlchemy 2.0**: Uses `Session.query()` pattern (legacy), not the newer `select()` style. Be consistent.
 5. **Poetry shell**: Don't activate `poetry shell` - use `poetry run` prefix for commands to avoid path issues.
 
 ## Testing Strategy
 
-No formal test suite yet. Manual testing via:
-- Backend: FastAPI `/docs` interactive API explorer
-- Frontend: Browser testing at `http://localhost:3000`
-- Database: Direct SQL queries via Neon console or `psql`
+Automated tests run in CI (`.github/workflows/test.yml`, path-filtered per layer):
+- **Backend**: `pytest` in `backend/tests/` (mirrors the package layout). Covers `calculate_fantasy_score`,
+  auth endpoints + owner isolation, picks eligibility/upsert, and guest→user migration. SQLite in-memory,
+  external services mocked. Run with `poetry run pytest` (the user runs tests themselves).
+- **Frontend**: `vitest` + `@testing-library/react`, tests next to source as `*.test.ts(x)`
+  (e.g. `lib/players.test.ts`). Run with `pnpm test`.
 
-When adding tests, consider:
-- Backend: pytest for API endpoints and Fantasy score calculations
-- Frontend: Jest + React Testing Library for components
+Priority is business logic, auth boundaries, and (later) notification correctness — not component
+rendering or styling. See the Testing strategy section in `plan.md` for the full rationale.
+
+Still manual: FastAPI `/docs` explorer, browser testing at `http://localhost:3000`, direct SQL via Neon/`psql`.

@@ -178,7 +178,11 @@ class Owner(Base):
 
 
 class Pick(Base):
-    """One pick per owner per game_date.
+    """One row per owner per game_date.
+
+    player_id NULL = the owner deliberately skipped that night (no pick made).
+    A skip still occupies the night's slot, so the forgotten-pick reminder leaves
+    it alone, but it never counts toward the 30-day / once-per-playoffs rule.
 
     Index strategy:
     - uq_pick_owner_date (unique constraint) covers (owner_id, game_date) — 30-day rule + dedup.
@@ -192,7 +196,7 @@ class Pick(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     owner_id = Column(Integer, ForeignKey("owners.id"), nullable=False)
-    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # NULL = skipped night
     game_date = Column(Date, nullable=False)
     picked_at = Column(DateTime(timezone=True), server_default=func.now())
 

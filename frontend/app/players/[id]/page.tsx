@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getPlayerStats, PlayerStats } from "@/lib/api";
-import { getAllPicks } from "@/lib/picks";
+import { usePicks } from "@/lib/hooks/usePicks";
 import {
   AlertCircle,
   ArrowLeft,
@@ -36,12 +36,11 @@ import { useEffect, useState } from "react";
 
 const LOGO_SIZE = 40;
 
-const picks = getAllPicks();
-
 export default function PlayerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const playerId = parseInt(params.id as string);
+  const { picks } = usePicks();
 
   const [data, setData] = useState<PlayerStats | null>(null);
   const [loading, setLoading] = useState(true);

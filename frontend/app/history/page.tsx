@@ -18,8 +18,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getAllPlayers, getTodayET, PlayerBasic } from "@/lib/api";
+import { usePicks } from "@/lib/hooks/usePicks";
 import { useSnapshot } from "@/lib/hooks/useSnapshot";
-import { getAllPicks, getForgottenDates, Pick, skipDate } from "@/lib/picks";
+import { getForgottenDates, Pick } from "@/lib/picks";
 import {
   AlertCircle,
   AlertTriangle,
@@ -30,7 +31,8 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import useSWR from "swr";
 
 interface PickWithPlayer extends Pick {
   playerName: string;
@@ -38,90 +40,50 @@ interface PickWithPlayer extends Pick {
 }
 
 export default function HistoryPage() {
-  const [history, setHistory] = useState<PickWithPlayer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showImport, setShowImport] = useState(false);
-  const [forgottenDates, setForgottenDates] = useState<string[]>([]);
-
-  // Fetch snapshot with SWR (cached across pages)
+  const { picks, skip } = usePicks();
   const { data: snapshot } = useSnapshot();
 
-  // Load forgotten dates when snapshot is available
-  const loadForgottenDates = useCallback(() => {
-    if (!snapshot) return;
-    try {
-      const todayET = getTodayET();
-      const forgotten = getForgottenDates(snapshot, todayET);
-      setForgottenDates(forgotten);
-    } catch (err) {
-      console.error("Failed to load forgotten dates:", err);
-    }
-  }, [snapshot]);
+  const [showImport, setShowImport] = useState(false);
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
+  // Player names (to label picks, which only carry player_id), cached via SWR
+  const {
+    data: playerList,
+    error: playersError,
+    mutate: reloadPlayers,
+  } = useSWR("/api/players/all", getAllPlayers, { revalidateOnFocus: false });
 
-  useEffect(() => {
-    loadForgottenDates();
-  }, [loadForgottenDates]);
+  const players = useMemo(() => {
+    if (!playerList) return null;
+    const map = new Map<number, PlayerBasic>();
+    playerList.forEach((p) => map.set(p.player_id, p));
+    return map;
+  }, [playerList]);
 
-  async function loadHistory() {
-    try {
-      setLoading(true);
-      setError(null);
+  // Gate on player names; picks arrive quickly via SWR
+  const loading = !playerList && !playersError;
+  const error = playersError ? "Failed to load history" : null;
 
-      // Get picks from localStorage
-      const picks = getAllPicks();
+  // Match picks with player info (skips have player_id -1 and drop out here)
+  const history: PickWithPlayer[] = useMemo(() => {
+    if (!players) return [];
+    return picks
+      .map((pick) => {
+        const player = players.get(pick.playerId);
+        if (!player) return null;
+        const team = typeof player.team === "string" ? player.team : "";
+        return { ...pick, playerName: player.name, team };
+      })
+      .filter((p): p is PickWithPlayer => p !== null)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [picks, players]);
 
-      if (picks.length === 0) {
-        setHistory([]);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch all players to get names
-      const players = await getAllPlayers();
-      const playerMap = new Map<number, PlayerBasic>();
-      players.forEach((p) => playerMap.set(p.player_id, p));
-
-      // Match picks with player info
-      const picksWithPlayers: PickWithPlayer[] = picks
-        .map((pick) => {
-          const player = playerMap.get(pick.playerId);
-          if (!player) return null;
-
-          // Ensure team is a string (defensive programming)
-          const team = typeof player.team === "string" ? player.team : "";
-
-          return {
-            ...pick,
-            playerName: player.name,
-            team,
-          };
-        })
-        .filter((p): p is PickWithPlayer => p !== null)
-        .sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-
-      setHistory(picksWithPlayers);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load history");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleImportComplete() {
-    loadHistory();
-    loadForgottenDates();
-  }
+  const forgottenDates = useMemo(() => {
+    if (!snapshot) return [];
+    return getForgottenDates(picks, snapshot, getTodayET());
+  }, [picks, snapshot]);
 
   function handleSkipDate(date: string) {
-    skipDate(date);
-    loadForgottenDates();
+    skip(date); // forgotten list recomputes from picks
   }
 
   if (loading) {
@@ -149,7 +111,7 @@ export default function HistoryPage() {
           <p className="text-muted-foreground mb-6 text-center max-w-md">
             {error}
           </p>
-          <Button onClick={loadHistory} size="lg" className="shadow-md">
+          <Button onClick={() => reloadPlayers()} size="lg" className="shadow-md">
             Try Again
           </Button>
         </CardContent>
@@ -208,7 +170,7 @@ export default function HistoryPage() {
         {/* Import modal */}
         {showImport && (
           <ImportPicks
-            onImportComplete={handleImportComplete}
+            onImportComplete={() => setShowImport(false)}
             onClose={() => setShowImport(false)}
           />
         )}
@@ -351,7 +313,7 @@ export default function HistoryPage() {
       {/* Import modal */}
       {showImport && (
         <ImportPicks
-          onImportComplete={handleImportComplete}
+          onImportComplete={() => setShowImport(false)}
           onClose={() => setShowImport(false)}
         />
       )}

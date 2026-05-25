@@ -5,8 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import { PlayerInfo } from "@/components/PlayerInfo";
 import { getTodayET } from "@/lib/api";
+import { usePicks } from "@/lib/hooks/usePicks";
 import { useSnapshot } from "@/lib/hooks/useSnapshot";
-import { enrichPlayersWithEligibility, getAllPicks } from "@/lib/picks";
+import { enrichPlayersWithEligibility } from "@/lib/picks";
 
 const LOGO_SIZE = 28;
 type SortKey = "rank" | "avg_fantasy_l10" | "avg_fantasy_l30d" | "name";
@@ -29,6 +30,7 @@ function RankTrend({ delta }: { delta: number | null }) {
 
 export default function RankingsView() {
   const { data: snapshot, isLoading } = useSnapshot();
+  const { picks } = usePicks();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("rank");
   const [isHydrated, setIsHydrated] = useState(false);
@@ -51,7 +53,7 @@ export default function RankingsView() {
 
   const playoffStartDate = snapshot?.metadata.playoff_start_date ?? null;
 
-  // Apply eligibility from localStorage
+  // Apply eligibility from picks
   const playersWithEligibility = useMemo(() => {
     if (!isHydrated)
       return rankedPlayers.map((p) => ({
@@ -63,11 +65,11 @@ export default function RankingsView() {
 
     return enrichPlayersWithEligibility(
       rankedPlayers,
-      getAllPicks(),
+      picks,
       getTodayET(),
       playoffStartDate
     );
-  }, [rankedPlayers, isHydrated, playoffStartDate]);
+  }, [rankedPlayers, isHydrated, picks, playoffStartDate]);
 
   // Filter + sort
   const filtered = useMemo(() => {

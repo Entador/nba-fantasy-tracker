@@ -14,17 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getTodayET } from "@/lib/api";
+import { usePicks } from "@/lib/hooks/usePicks";
 import { useSnapshot } from "@/lib/hooks/useSnapshot";
 import { FilterOption, PlayerWithEligibility, SortOption, filterAndSortPlayers } from "@/lib/players";
-import {
-  enrichPlayersWithEligibility,
-  getAllPicks,
-  getForgottenDates,
-  getPickForDate,
-  removePick,
-  savePick,
-  skipDate,
-} from "@/lib/picks";
+import { enrichPlayersWithEligibility, getForgottenDates } from "@/lib/picks";
 import {
   computeStatRanges,
   formatGamesForFilter,
@@ -124,7 +117,7 @@ interface PlayersViewProps {
  * - Fetches entire season snapshot once
  * - Filters by date client-side (instant navigation)
  * - Filtering and sorting
- * - Pick management (localStorage)
+ * - Pick management (server-backed via usePicks)
  */
 export default function PlayersView({ initialDate }: PlayersViewProps) {
   const router = useRouter();
@@ -144,12 +137,13 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
   const [filterBy, setFilterBy] = useState<FilterOption>("available");
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
 
-  // Hydration + pick state (localStorage not available on server)
-  const [isHydrated, setIsHydrated] = useState(false);
-  const [currentPick, setCurrentPick] = useState<number | null>(null);
+  // Picks (server-backed: guest via the anon_id cookie, or the signed-in user)
+  const { picks, isLoading: picksLoading, setPick, clearPick, skip } = usePicks();
 
-  // Forgotten pick detection
-  const [forgottenDates, setForgottenDates] = useState<string[]>([]);
+  // Hydration gate (picks load client-side via SWR; avoids SSR count mismatch)
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Forgotten pick alert visibility
   const [showForgottenAlert, setShowForgottenAlert] = useState(true);
 
   // Loading gif fade-out state
@@ -174,41 +168,35 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
     }
   }, [loading, isHydrated]);
 
-  // Load pick from localStorage when date changes
-  useEffect(() => {
-    if (!isHydrated) return;
-    const pick = getPickForDate(currentDate);
-    setCurrentPick(pick?.playerId ?? null);
-  }, [currentDate, isHydrated]);
-
-  // Calculate forgotten dates when snapshot loads or picks change
-  // Always calculate from today (not currentDate) to keep count static
-  useEffect(() => {
-    if (!snapshot || !isHydrated) return;
-    const todayET = getTodayET();
-    const forgotten = getForgottenDates(snapshot, todayET);
-    setForgottenDates(forgotten);
-  }, [snapshot, isHydrated, currentPick]);
-
   // Reset alert visibility and game filter when date changes
   useEffect(() => {
     setShowForgottenAlert(true);
     setSelectedGame(null);
   }, [currentDate]);
 
-  // Pick handlers
+  // The pick currently selected for this date (skips don't count as a pick)
+  const currentPick = useMemo(() => {
+    const pick = picks.find((p) => p.date === currentDate && !p.isSkipped);
+    return pick ? pick.playerId : null;
+  }, [picks, currentDate]);
+
+  // Forgotten picks — always computed from today (not currentDate) to keep the count static
+  const forgottenDates = useMemo(() => {
+    if (!snapshot || !isHydrated) return [];
+    return getForgottenDates(picks, snapshot, getTodayET());
+  }, [picks, snapshot, isHydrated]);
+
+  // Pick handlers (optimistic; see usePicks)
   const handlePickPlayer = useCallback(
     (playerId: number) => {
-      savePick(playerId, currentDate, snapshot?.metadata.is_playoff_period);
-      setCurrentPick(playerId);
+      setPick(playerId, currentDate);
     },
-    [currentDate, snapshot]
+    [currentDate, setPick]
   );
 
   const handleRemovePick = useCallback(() => {
-    removePick(currentDate);
-    setCurrentPick(null);
-  }, [currentDate]);
+    clearPick(currentDate);
+  }, [currentDate, clearPick]);
 
   // Snapshot is fetched via SWR hook (cached across pages)
 
@@ -250,8 +238,7 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
 
   const playoffStartDate = snapshot?.metadata.playoff_start_date ?? null;
 
-  // Add eligibility info from localStorage
-  // currentPick triggers recalc when user picks/unpicks a player
+  // Add eligibility info from picks; recomputes whenever picks change
   const playersWithEligibility = useMemo((): PlayerWithEligibility[] => {
     if (!isHydrated) {
       return players.map((player) => ({
@@ -261,14 +248,8 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
         days_until_eligible: null,
       }));
     }
-    return enrichPlayersWithEligibility(
-      players,
-      getAllPicks(),
-      currentDate,
-      playoffStartDate
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, currentDate, isHydrated, currentPick, playoffStartDate]);
+    return enrichPlayersWithEligibility(players, picks, currentDate, playoffStartDate);
+  }, [players, currentDate, isHydrated, picks, playoffStartDate]);
 
   // Filter and sort players
   const filteredPlayers = useMemo(
@@ -276,13 +257,14 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
     [playersWithEligibility, sortBy, filterBy, selectedGame]
   );
 
+  // Eligibility counts wait for picks too, so a returning user never sees stale "available" numbers
   const availableCount =
-    !loading && isHydrated
+    !loading && isHydrated && !picksLoading
       ? playersWithEligibility.filter((p) => p.is_eligible).length
       : null;
 
   const lockedCount =
-    !loading && isHydrated
+    !loading && isHydrated && !picksLoading
       ? playersWithEligibility.filter((p) => !p.is_eligible).length
       : null;
 
@@ -399,11 +381,8 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
             date={currentDate}
             onPickNow={() => setShowForgottenAlert(false)}
             onSkip={() => {
-              skipDate(currentDate);
+              skip(currentDate);
               setShowForgottenAlert(false);
-              const todayET = getTodayET();
-              const updated = getForgottenDates(snapshot!, todayET);
-              setForgottenDates(updated);
             }}
           />
         )}
@@ -466,7 +445,7 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
       {/* Players list */}
       {!error && (
         <>
-          {loading || !isHydrated ? (
+          {loading || !isHydrated || picksLoading ? (
             <TableSkeleton />
           ) : players.length > 0 ? (
             <>

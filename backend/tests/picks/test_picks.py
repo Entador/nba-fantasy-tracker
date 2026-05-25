@@ -12,11 +12,12 @@ PLAYOFF_START = date(2026, 4, 18)
 
 @pytest.fixture
 def players(db_session):
-    """Three pickable players. Returns their DB ids."""
+    """Three pickable players. Returns their NBA player ids — the identifier the
+    public API speaks (the internal DB id never leaves the backend)."""
     rows = [Player(nba_player_id=1000 + i, name=f"Player {i}") for i in range(3)]
     db_session.add_all(rows)
     db_session.commit()
-    return [p.id for p in rows]
+    return [p.nba_player_id for p in rows]
 
 
 @pytest.fixture

@@ -60,6 +60,7 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
   try {
     const response = await fetch(url, {
       ...options,
+      credentials: 'include', // send/receive the anon_id (and future auth) cookie
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
@@ -71,6 +72,8 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
       throw new Error(error.detail || `HTTP ${response.status}`);
     }
 
+    // 204 No Content (e.g. DELETE) has no body to parse.
+    if (response.status === 204) return undefined as T;
     return await response.json();
   } catch (error) {
     console.error('API Error:', error);
@@ -150,4 +153,31 @@ export interface PlayerBasic {
 
 export async function getAllPlayers(): Promise<PlayerBasic[]> {
   return await fetchAPI<PlayerBasic[]>('/api/players/all');
+}
+
+// Picks API — owner (guest or user) is resolved server-side from the cookie/JWT.
+export interface BackendPick {
+  id: number;
+  player_id: number | null; // null = a deliberately skipped night
+  game_date: string; // YYYY-MM-DD
+  picked_at: string | null;
+}
+
+export async function getPicks(): Promise<BackendPick[]> {
+  return fetchAPI<BackendPick[]>('/api/picks');
+}
+
+/** Upsert this night's pick. playerId = null records a skip. */
+export async function createPick(
+  playerId: number | null,
+  gameDate: string
+): Promise<BackendPick> {
+  return fetchAPI<BackendPick>('/api/picks', {
+    method: 'POST',
+    body: JSON.stringify({ player_id: playerId, game_date: gameDate }),
+  });
+}
+
+export async function deletePick(id: number): Promise<void> {
+  await fetchAPI<void>(`/api/picks/${id}`, { method: 'DELETE' });
 }
