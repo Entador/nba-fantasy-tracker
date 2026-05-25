@@ -181,3 +181,42 @@ export async function createPick(
 export async function deletePick(id: number): Promise<void> {
   await fetchAPI<void>(`/api/picks/${id}`, { method: 'DELETE' });
 }
+
+// Auth API — the JWT lives in an HttpOnly cookie set by the backend, so there is
+// no token to store or attach here; it rides along on credentials: 'include'.
+export interface AuthUser {
+  id: number;
+  email: string | null;
+  is_active: boolean;
+  is_verified: boolean;
+}
+
+export async function register(email: string, password: string): Promise<AuthUser> {
+  return fetchAPI<AuthUser>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+/** Log in. On success the backend sets the access_token cookie; nothing to store. */
+export async function login(email: string, password: string): Promise<void> {
+  // /token expects form-encoded data (OAuth2PasswordRequestForm), not JSON, and
+  // names the email field "username". This header overrides fetchAPI's JSON default.
+  const body = new URLSearchParams({ username: email, password });
+  await fetchAPI<unknown>('/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+}
+
+export async function logout(): Promise<void> {
+  await fetchAPI<void>('/auth/logout', { method: 'POST' });
+}
+
+/** Current user, or null for guests (a 401 is the normal "not signed in" case). */
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const res = await fetch(`${API_URL}/users/me`, { credentials: 'include' });
+  if (!res.ok) return null;
+  return res.json();
+}

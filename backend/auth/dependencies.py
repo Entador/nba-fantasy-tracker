@@ -6,19 +6,23 @@ Other routers can protect endpoints by depending on `get_current_active_user`.
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import Session
 
-from auth.config import ALGORITHM, SECRET_KEY
+from auth.config import ACCESS_COOKIE_NAME, ALGORITHM, SECRET_KEY
 from models import User
 from models.database import get_db
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-# auto_error=False: a missing/invalid token yields None instead of a 401, so
-# endpoints open to guests (e.g. picks) can fall back to anonymous identity.
+# auto_error=False: a missing/invalid header yields None instead of a 401, so we
+# can fall back to the cookie (web) and guests can stay anonymous on open endpoints.
 optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+
+
+def _token_from_request(request: Request, header_token: str | None) -> str | None:
+    """Prefer the Authorization header (native clients); fall back to the cookie (web)."""
+    return header_token or request.cookies.get(ACCESS_COOKIE_NAME)
 
 
 def _user_from_token(token: str | None, db: Session) -> User | None:
@@ -41,10 +45,11 @@ def _user_from_token(token: str | None, db: Session) -> User | None:
 
 
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    request: Request,
+    header_token: Annotated[str | None, Depends(optional_oauth2_scheme)],
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
-    user = _user_from_token(token, db)
+    user = _user_from_token(_token_from_request(request, header_token), db)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,11 +60,12 @@ async def get_current_user(
 
 
 async def get_optional_user(
-    token: Annotated[str | None, Depends(optional_oauth2_scheme)],
+    request: Request,
+    header_token: Annotated[str | None, Depends(optional_oauth2_scheme)],
     db: Annotated[Session, Depends(get_db)],
 ) -> User | None:
     """Like get_current_user but returns None for guests instead of raising."""
-    return _user_from_token(token, db)
+    return _user_from_token(_token_from_request(request, header_token), db)
 
 
 async def get_current_active_user(

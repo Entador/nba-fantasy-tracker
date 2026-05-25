@@ -13,6 +13,14 @@ ALGORITHM = os.getenv("AUTH_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 MAGIC_LINK_EXPIRE_MINUTES = int(os.getenv("MAGIC_LINK_EXPIRE_MINUTES", "15"))
 
+# Web clients carry the JWT in an HttpOnly cookie (not readable by JS, so XSS
+# can't steal it); native clients keep using the Authorization: Bearer header.
+# Same env-driven SameSite/Secure as the anon_id cookie so dev (http localhost)
+# and cross-site prod both work.
+ACCESS_COOKIE_NAME = "access_token"
+COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+
 # Base URL of the frontend, used to build the link emailed to the user. The link
 # points at a frontend page that then calls GET /auth/magic/verify with the token.
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")

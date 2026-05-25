@@ -74,3 +74,35 @@ def test_me_returns_current_user(client):
     r = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     assert r.json()["email"] == VALID["email"]
+
+
+def test_login_sets_httponly_access_cookie(client):
+    register(client)
+    r = login(client)
+    cookie = r.headers["set-cookie"]
+    assert "access_token=" in cookie
+    assert "httponly" in cookie.lower()
+
+
+def test_cookie_authenticates_me_without_header(client):
+    # TestClient stores the cookie from login, so the next request sends it.
+    register(client)
+    login(client)  # no Authorization header used below
+    r = client.get("/users/me")
+    assert r.status_code == 200
+    assert r.json()["email"] == VALID["email"]
+
+
+def test_register_logs_user_in_via_cookie(client):
+    register(client)  # register also sets the access cookie
+    r = client.get("/users/me")
+    assert r.status_code == 200
+    assert r.json()["email"] == VALID["email"]
+
+
+def test_logout_clears_cookie_and_deauthenticates(client):
+    register(client)
+    login(client)
+    assert client.post("/auth/logout").status_code == 200
+    # Cookie cleared → the session-authenticated request is now unauthorized.
+    assert client.get("/users/me").status_code == 401
