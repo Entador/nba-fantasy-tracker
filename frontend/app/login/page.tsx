@@ -42,6 +42,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,9 +59,9 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       if (mode === "login") {
-        await login(email, password);
+        await login(email, password, rememberMe);
       } else {
-        await register(email, password);
+        await register(email, password, rememberMe);
       }
       router.push("/");
     } catch (err) {
@@ -105,6 +106,16 @@ export default function LoginPage() {
                 placeholder="At least 8 characters"
               />
             </div>
+
+            <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="size-4 rounded border-input accent-primary"
+              />
+              Keep me signed in on this device
+            </label>
 
             {error && (
               <p className="text-sm text-destructive" role="alert">

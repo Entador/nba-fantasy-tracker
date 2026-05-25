@@ -126,6 +126,7 @@ class User(Base):
     deleted_at = Column(DateTime(timezone=True), nullable=True)  # soft-delete; filter WHERE deleted_at IS NULL
 
     owner = relationship("Owner", back_populates="user", uselist=False)
+    sessions = relationship("RefreshSession", back_populates="user")
     devices = relationship("UserDevice", back_populates="user")
     notification_pref = relationship("NotificationPref", back_populates="user", uselist=False)
     notification_logs = relationship("NotificationLog", back_populates="user")
@@ -202,6 +203,27 @@ class Pick(Base):
 
     owner = relationship("Owner", back_populates="picks")
     player = relationship("Player")
+
+
+class RefreshSession(Base):
+    """A long-lived, revocable login session backing the refresh-token flow.
+
+    The refresh token itself is never stored — only its SHA-256 hash, so a DB
+    leak can't hand out live sessions. Rotated on every /auth/refresh: the old
+    row is revoked and a new one issued. revoked_at NULL = active."""
+    __tablename__ = "refresh_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String, unique=True, nullable=False, index=True)
+    persistent = Column(Boolean, nullable=False, default=True)  # "remember me": survive browser close
+    issued_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)  # NULL = active
+    user_agent = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="sessions")
 
 
 class UserDevice(Base):
