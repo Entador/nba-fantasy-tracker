@@ -32,6 +32,16 @@ def pick(client, player_id, game_date=D):
     return client.post("/api/picks", json={"player_id": player_id, "game_date": game_date.isoformat()})
 
 
+def get_picks(client, headers=None):
+    """The picks list. GET /api/picks now returns {picks, locks}; tests that only
+    care about the stored picks go through here."""
+    return client.get("/api/picks", headers=headers).json()["picks"]
+
+
+def get_locks(client, headers=None):
+    return client.get("/api/picks", headers=headers).json()["locks"]
+
+
 def register_and_login(client, email):
     client.post("/auth/register", json={"email": email, "password": "password123"})
     token = client.post("/token", data={"username": email, "password": "password123"}).json()["access_token"]
@@ -54,15 +64,15 @@ def test_guest_retrieves_picks_via_cookie(make_client, players):
     pick(c, players[0])
     # The anon identity is set as a cookie; a follow-up request carries it.
     assert "anon_id" in c.cookies
-    listed = c.get("/api/picks").json()
+    listed = get_picks(c)
     assert [p["player_id"] for p in listed] == [players[0]]
 
 
 def test_two_guests_are_isolated(make_client, players):
     a, b = make_client(), make_client()
     pick(a, players[0])
-    assert a.get("/api/picks").json() != []
-    assert b.get("/api/picks").json() == []  # different cookie -> different owner
+    assert get_picks(a) != []
+    assert get_picks(b) == []  # different cookie -> different owner
 
 
 # --- Pick rules -----------------------------------------------------------
@@ -71,7 +81,7 @@ def test_repick_same_night_replaces_player(make_client, players):
     c = make_client()
     pick(c, players[0])
     pick(c, players[1])
-    listed = c.get("/api/picks").json()
+    listed = get_picks(c)
     assert len(listed) == 1
     assert listed[0]["player_id"] == players[1]
 
@@ -124,7 +134,7 @@ def test_batch_imports_all_picks(make_client, players):
     r = batch(c, [(players[0], D), (players[1], D + timedelta(days=1))])
     assert r.status_code == 201
     assert r.json() == {"imported": 2, "skipped": 0}
-    assert len(c.get("/api/picks").json()) == 2
+    assert len(get_picks(c)) == 2
 
 
 def test_batch_bypasses_30_day_rule(make_client, players):
@@ -132,14 +142,14 @@ def test_batch_bypasses_30_day_rule(make_client, players):
     # Same player twice within 30 days — rejected one-by-one, allowed in an import.
     r = batch(c, [(players[0], D), (players[0], D + timedelta(days=5))])
     assert r.json() == {"imported": 2, "skipped": 0}
-    assert len(c.get("/api/picks").json()) == 2
+    assert len(get_picks(c)) == 2
 
 
 def test_batch_overwrites_existing_pick(make_client, players):
     c = make_client()
     pick(c, players[0], D)  # pre-existing pick for the night
     batch(c, [(players[1], D)])  # import overwrites it
-    listed = c.get("/api/picks").json()
+    listed = get_picks(c)
     assert len(listed) == 1
     assert listed[0]["player_id"] == players[1]
 
@@ -148,7 +158,7 @@ def test_batch_skips_unknown_player(make_client, players):
     c = make_client()
     r = batch(c, [(players[0], D), (999999, D + timedelta(days=1))])
     assert r.json() == {"imported": 1, "skipped": 1}
-    assert len(c.get("/api/picks").json()) == 1
+    assert len(get_picks(c)) == 1
 
 
 # --- Delete + authorization ----------------------------------------------
@@ -157,14 +167,14 @@ def test_delete_own_pick(make_client, players):
     c = make_client()
     pick_id = pick(c, players[0]).json()["id"]
     assert c.delete(f"/api/picks/{pick_id}").status_code == 204
-    assert c.get("/api/picks").json() == []
+    assert get_picks(c) == []
 
 
 def test_cannot_delete_another_owners_pick(make_client, players):
     a, b = make_client(), make_client()
     pick_id = pick(a, players[0]).json()["id"]
     assert b.delete(f"/api/picks/{pick_id}").status_code == 404  # not yours -> looks missing
-    assert len(a.get("/api/picks").json()) == 1  # still there
+    assert len(get_picks(a)) == 1  # still there
 
 
 # --- Authenticated users --------------------------------------------------
@@ -175,8 +185,22 @@ def test_user_picks_isolated_from_guest(make_client, players):
     headers = register_and_login(user, "u1@example.com")
 
     user.post("/api/picks", json={"player_id": players[0], "game_date": D.isoformat()}, headers=headers)
-    assert len(user.get("/api/picks", headers=headers).json()) == 1
-    assert guest.get("/api/picks").json() == []
+    assert len(get_picks(user, headers)) == 1
+    assert get_picks(guest) == []
+
+
+def test_expired_session_does_not_downgrade_to_guest(make_client, players):
+    """A logged-in user whose access token expired must not be silently treated as a
+    fresh guest. An access_token cookie present but invalid (no resolvable user) should
+    401 — so the client refreshes and retries — instead of minting a new anon identity
+    and creating the pick under it."""
+    c = make_client()
+    c.cookies.set("access_token", "expired.or.invalid.jwt")  # cookie lingers, token dead
+
+    r = pick(c, players[0])
+
+    assert r.status_code == 401
+    assert "anon_id" not in c.cookies  # no guest identity was minted
 
 
 def test_two_users_are_isolated(make_client, players):
@@ -185,8 +209,8 @@ def test_two_users_are_isolated(make_client, players):
     hb = register_and_login(b, "b@example.com")
 
     a.post("/api/picks", json={"player_id": players[0], "game_date": D.isoformat()}, headers=ha)
-    assert len(a.get("/api/picks", headers=ha).json()) == 1
-    assert b.get("/api/picks", headers=hb).json() == []
+    assert len(get_picks(a, ha)) == 1
+    assert get_picks(b, hb) == []
 
 
 # --- Guest -> account migration on sign-in -------------------------------
@@ -204,7 +228,7 @@ def test_register_claims_guest_picks(make_client, players):
     pick(c, players[0])  # made as a guest, under an anon cookie
     headers = register_and_login(c, "new@example.com")
 
-    listed = c.get("/api/picks", headers=headers).json()
+    listed = get_picks(c, headers)
     assert [p["player_id"] for p in listed] == [players[0]]
     assert "anon_id" not in c.cookies  # spent cookie cleared on migration
 
@@ -219,7 +243,7 @@ def test_login_merges_guest_picks_into_existing_account(make_client, players):
     token = guest.post("/token", data={"username": "owner@example.com", "password": "password123"})
     hg = {"Authorization": f"Bearer {token.json()['access_token']}"}
 
-    listed = guest.get("/api/picks", headers=hg).json()
+    listed = get_picks(guest, hg)
     assert {(p["player_id"], p["game_date"]) for p in listed} == {
         (players[0], D.isoformat()),
         (players[1], (D + timedelta(days=5)).isoformat()),
@@ -236,6 +260,48 @@ def test_migration_keeps_account_pick_on_conflicting_night(make_client, players)
     token = guest.post("/token", data={"username": "owner@example.com", "password": "password123"})
     hg = {"Authorization": f"Bearer {token.json()['access_token']}"}
 
-    listed = guest.get("/api/picks", headers=hg).json()
+    listed = get_picks(guest, hg)
     assert len(listed) == 1
     assert listed[0]["player_id"] == players[0]  # account's pick wins
+
+
+# --- Eligibility locks (the read-side mirror of the 30-day / playoff rule) -----
+
+def test_no_picks_means_no_locks(make_client):
+    assert get_locks(make_client()) == []
+
+
+def test_regular_season_lock_is_latest_pick_plus_30_days(make_client, players):
+    c = make_client()
+    pick(c, players[0], D)
+    assert get_locks(c) == [
+        {"player_id": players[0], "available_on": (D + timedelta(days=30)).isoformat()}
+    ]
+
+
+def test_lock_tracks_the_latest_pick(make_client, players):
+    c = make_client()
+    pick(c, players[0], D)
+    pick(c, players[0], D + timedelta(days=31))  # legal: outside the 30-day window
+    assert get_locks(c) == [
+        {"player_id": players[0], "available_on": (D + timedelta(days=61)).isoformat()}
+    ]
+
+
+def test_skip_does_not_lock_anyone(make_client):
+    c = make_client()
+    c.post("/api/picks", json={"player_id": None, "game_date": D.isoformat()})
+    assert get_picks(c)[0]["player_id"] is None  # the skip was stored
+    assert get_locks(c) == []  # but it locks no player
+
+
+def test_playoff_lock_has_no_available_on(make_client, players, playoffs):
+    c = make_client()
+    pick(c, players[0], PLAYOFF_START + timedelta(days=2))
+    assert get_locks(c) == [{"player_id": players[0], "available_on": None}]
+
+
+def test_regular_pick_does_not_lock_during_playoffs(make_client, players, playoffs):
+    c = make_client()
+    pick(c, players[0], PLAYOFF_START - timedelta(days=3))  # a pre-playoff pick
+    assert get_locks(c) == []  # ignored once the playoffs have started

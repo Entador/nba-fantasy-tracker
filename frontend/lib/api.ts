@@ -199,8 +199,22 @@ export interface BackendPick {
   picked_at: string | null;
 }
 
-export async function getPicks(): Promise<BackendPick[]> {
-  return fetchAPI<BackendPick[]>('/api/picks');
+// Per-player eligibility lock derived server-side from the caller's picks (the
+// 30-day / playoff rule lives in the backend). available_on is the first date the
+// player can be picked again; null = locked for the rest of the playoff run.
+// Only locked players appear; anyone absent is eligible.
+export interface PlayerLock {
+  player_id: number;
+  available_on: string | null; // YYYY-MM-DD, or null during the playoffs
+}
+
+export interface PicksResponse {
+  picks: BackendPick[];
+  locks: PlayerLock[];
+}
+
+export async function getPicks(): Promise<PicksResponse> {
+  return fetchAPI<PicksResponse>('/api/picks');
 }
 
 /** Upsert this night's pick. playerId = null records a skip. */

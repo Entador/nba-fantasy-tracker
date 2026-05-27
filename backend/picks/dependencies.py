@@ -7,9 +7,10 @@ minting a new anonymous identity (and setting the cookie) for first-time guests.
 import os
 from typing import Annotated
 
-from fastapi import Depends, Request, Response
+from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
+from auth.config import ACCESS_COOKIE_NAME
 from auth.dependencies import get_optional_user
 from models import Owner, User
 from models.database import get_db
@@ -33,6 +34,18 @@ def get_current_owner(
 ) -> Owner:
     if user is not None:
         return service.get_or_create_owner_for_user(db, user)
+
+    # An access_token cookie present but no resolved user means a logged-in session
+    # whose JWT expired (get_optional_user returned None). That's a lapsed login, NOT
+    # a guest: falling through to the anon flow would silently mint a fresh guest and
+    # "lose" the user's picks. 401 instead so the web client refreshes the token and
+    # retries as the real owner. A genuine guest sends no access_token cookie.
+    if request.cookies.get(ACCESS_COOKIE_NAME):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     token = request.cookies.get(ANON_COOKIE_NAME)
     owner, token = service.get_or_create_owner_for_anon(db, token)

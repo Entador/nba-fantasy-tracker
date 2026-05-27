@@ -30,7 +30,7 @@ function RankTrend({ delta }: { delta: number | null }) {
 
 export default function RankingsView() {
   const { data: snapshot, isLoading } = useSnapshot();
-  const { picks } = usePicks();
+  const { picks, locks } = usePicks();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("rank");
   const [isHydrated, setIsHydrated] = useState(false);
@@ -51,9 +51,9 @@ export default function RankingsView() {
     return sorted.map((p, i) => ({ ...p, rank: i + 1 }));
   }, [snapshot]);
 
-  const playoffStartDate = snapshot?.metadata.playoff_start_date ?? null;
+  const today = getTodayET();
 
-  // Apply eligibility from picks
+  // Apply server-computed eligibility (locks); rankings are always evaluated for today.
   const playersWithEligibility = useMemo(() => {
     if (!isHydrated)
       return rankedPlayers.map((p) => ({
@@ -63,13 +63,10 @@ export default function RankingsView() {
         days_until_eligible: null,
       }));
 
-    return enrichPlayersWithEligibility(
-      rankedPlayers,
-      picks,
-      getTodayET(),
-      playoffStartDate
-    );
-  }, [rankedPlayers, isHydrated, picks, playoffStartDate]);
+    const todaysPickId =
+      picks.find((p) => p.date === today && !p.isSkipped)?.playerId ?? null;
+    return enrichPlayersWithEligibility(rankedPlayers, locks, today, todaysPickId);
+  }, [rankedPlayers, isHydrated, locks, picks, today]);
 
   // Filter + sort
   const filtered = useMemo(() => {

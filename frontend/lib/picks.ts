@@ -6,6 +6,8 @@
  * detection — that operates on a `Pick[]` passed in by the caller.
  */
 
+import { PlayerLock } from '@/lib/api';
+
 export interface Pick {
   id?: number; // backend pick id (used to delete); absent for optimistic entries
   playerId: number; // -1 = a deliberately skipped night (see isSkipped)
@@ -20,92 +22,69 @@ export function toDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-export interface EligibilityInfo {
-  isEligible: boolean;
-  lastPickedDate: string | null;
-  daysUntilEligible: number | null;
-}
+type Eligibility = {
+  is_eligible: boolean;
+  last_picked_date: string | null;
+  days_until_eligible: number | null;
+};
+
+const ELIGIBLE: Eligibility = {
+  is_eligible: true,
+  last_picked_date: null,
+  days_until_eligible: null,
+};
 
 /**
- * Compute eligibility for multiple players at once.
- * Reads picks once and builds a lookup map — use this for bulk operations.
- *
- * Returns a Map<playerId, EligibilityInfo>.
- * Players not in the map are eligible (no recent picks found).
- *
- * @param playoffStartDate - If provided, activates playoff rules: each player can only
- *   be picked once for the entire playoff period. A pick is classified as a playoff pick
- *   by comparing its date against this threshold (not by a flag on the pick),
- *   so retroactively edited regular-season picks are never misclassified.
+ * Resolve one player's eligibility on `currentDate` from their server-computed lock.
+ * `availableOn` is undefined when the player has no lock (eligible), null when locked
+ * for the whole playoff run, or the date they become pickable again.
  */
-export function computeEligibilityMap(
-  picks: Pick[],
-  currentDate: string,
-  playoffStartDate: string | null
-): Map<number, EligibilityInfo> {
-  const map = new Map<number, EligibilityInfo>();
-
-  if (playoffStartDate) {
-    // Playoff rules: ineligible if picked on any other date during the playoff period
-    const playoffPickedIds = new Set(
-      picks
-        .filter((p) => !p.isSkipped && p.date >= playoffStartDate && p.date !== currentDate)
-        .map((p) => p.playerId)
-    );
-    playoffPickedIds.forEach((id) => {
-      map.set(id, { isEligible: false, lastPickedDate: null, daysUntilEligible: null });
-    });
-    return map;
+function resolveEligibility(
+  availableOn: string | null | undefined,
+  currentDate: string
+): Eligibility {
+  if (availableOn === undefined) return ELIGIBLE;
+  if (availableOn === null) {
+    return { is_eligible: false, last_picked_date: null, days_until_eligible: null };
   }
+  if (currentDate >= availableOn) return ELIGIBLE; // ISO dates compare lexicographically
 
-  // Regular season: 30-day window
-  const from = new Date(currentDate);
-
-  picks.forEach((pick) => {
-    if (pick.isSkipped) return;
-
-    const pickDate = new Date(pick.date);
-    const diffDays = Math.floor(
-      (from.getTime() - pickDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    // Pick counts if it was 1-29 days ago (within 30-day window, but NOT same day)
-    if (diffDays > 0 && diffDays < 30) {
-      const existing = map.get(pick.playerId);
-      if (!existing || pick.date > existing.lastPickedDate!) {
-        map.set(pick.playerId, {
-          isEligible: false,
-          lastPickedDate: pick.date,
-          daysUntilEligible: 30 - diffDays,
-        });
-      }
-    }
-  });
-
-  return map;
+  const days = Math.round(
+    (new Date(availableOn).getTime() - new Date(currentDate).getTime()) / 86_400_000
+  );
+  return { is_eligible: false, last_picked_date: null, days_until_eligible: days };
 }
 
 /**
- * Enrich a list of players with eligibility data from the given picks.
+ * Enrich players with eligibility derived from the server-computed `locks`.
+ *
+ * The 30-day / playoff rule lives in the backend (picks/service.compute_locks); each
+ * lock just says when a picked player is eligible again, independent of the viewed
+ * date — so this stays a cheap pure read across all date navigation.
+ *
+ * The player currently selected for `currentDate` is always eligible: that's your
+ * active pick, not a lock against keeping it tonight. (A player picked today can't
+ * have any other lock — you can't pick the same player twice within the window.)
+ *
  * Pure function — call from a useMemo in the component.
  */
 export function enrichPlayersWithEligibility<T extends { player_id: number }>(
   players: T[],
-  allPicks: Pick[],
+  locks: PlayerLock[],
   currentDate: string,
-  playoffStartDate: string | null
-): Array<T & { is_eligible: boolean; last_picked_date: string | null; days_until_eligible: number | null }> {
-  const eligibilityMap = computeEligibilityMap(allPicks, currentDate, playoffStartDate);
+  currentPickId: number | null = null
+): Array<T & Eligibility> {
+  const availableByPlayer = new Map(locks.map((l) => [l.player_id, l.available_on]));
 
-  return players.map((player) => {
-    const eligibility = eligibilityMap.get(player.player_id);
-    return {
-      ...player,
-      is_eligible: eligibility ? eligibility.isEligible : true,
-      last_picked_date: eligibility?.lastPickedDate ?? null,
-      days_until_eligible: eligibility?.daysUntilEligible ?? null,
-    };
-  });
+  return players.map((player) => ({
+    ...player,
+    ...resolveEligibility(
+      player.player_id === currentPickId
+        ? undefined
+        : availableByPlayer.get(player.player_id),
+      currentDate
+    ),
+  }));
 }
 
 /**

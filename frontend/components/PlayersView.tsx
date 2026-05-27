@@ -1,6 +1,12 @@
 "use client";
 
-import { AlarmClock, AlertCircle, AlertTriangle, ArrowRight, Calendar } from "lucide-react";
+import {
+  AlarmClock,
+  AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  Calendar,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,8 +22,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getTodayET } from "@/lib/api";
 import { usePicks } from "@/lib/hooks/usePicks";
 import { useSnapshot } from "@/lib/hooks/useSnapshot";
-import { FilterOption, PlayerWithEligibility, SortOption, filterAndSortPlayers } from "@/lib/players";
 import { enrichPlayersWithEligibility, getForgottenDates } from "@/lib/picks";
+import {
+  FilterOption,
+  PlayerWithEligibility,
+  SortOption,
+  filterAndSortPlayers,
+} from "@/lib/players";
 import {
   computeStatRanges,
   formatGamesForFilter,
@@ -127,6 +138,17 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
   const dateParam = searchParams?.get("date");
   const currentDate = dateParam || initialDate;
 
+  // Picks (server-backed: guest via the anon_id cookie, or the signed-in user).
+  // `locks` carries the server-computed eligibility (the 30-day / playoff rule).
+  const {
+    picks,
+    locks,
+    isLoading: picksLoading,
+    setPick,
+    clearPick,
+    skip,
+  } = usePicks();
+
   // Fetch snapshot with SWR (cached across pages)
   const { data: snapshot, error: swrError, isLoading } = useSnapshot();
   const loading = isLoading;
@@ -136,9 +158,6 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
   const [sortBy, setSortBy] = useState<SortOption>("l10-desc");
   const [filterBy, setFilterBy] = useState<FilterOption>("available");
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
-
-  // Picks (server-backed: guest via the anon_id cookie, or the signed-in user)
-  const { picks, isLoading: picksLoading, setPick, clearPick, skip } = usePicks();
 
   // Hydration gate (picks load client-side via SWR; avoids SSR count mismatch)
   const [isHydrated, setIsHydrated] = useState(false);
@@ -180,11 +199,14 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
     return pick ? pick.playerId : null;
   }, [picks, currentDate]);
 
-  // Forgotten picks — always computed from today (not currentDate) to keep the count static
+  // Forgotten picks — always computed from today (not currentDate) to keep the count static.
+  // Wait for picks to load: a returning user's access token refresh means picks arrive a
+  // round-trip after the snapshot, and computing against an empty list would flag every
+  // past game date as "forgotten" until they land.
   const forgottenDates = useMemo(() => {
-    if (!snapshot || !isHydrated) return [];
+    if (!snapshot || !isHydrated || picksLoading) return [];
     return getForgottenDates(picks, snapshot, getTodayET());
-  }, [picks, snapshot, isHydrated]);
+  }, [picks, snapshot, isHydrated, picksLoading]);
 
   // Pick handlers (optimistic; see usePicks)
   const handlePickPlayer = useCallback(
@@ -236,8 +258,6 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
     return getGamesForDate(snapshot, currentDate);
   }, [snapshot, currentDate]);
 
-  const playoffStartDate = snapshot?.metadata.playoff_start_date ?? null;
-
   // Add eligibility info from picks; recomputes whenever picks change
   const playersWithEligibility = useMemo((): PlayerWithEligibility[] => {
     if (!isHydrated) {
@@ -248,12 +268,18 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
         days_until_eligible: null,
       }));
     }
-    return enrichPlayersWithEligibility(players, picks, currentDate, playoffStartDate);
-  }, [players, currentDate, isHydrated, picks, playoffStartDate]);
+    return enrichPlayersWithEligibility(players, locks, currentDate, currentPick);
+  }, [players, currentDate, isHydrated, locks, currentPick]);
 
   // Filter and sort players
   const filteredPlayers = useMemo(
-    () => filterAndSortPlayers(playersWithEligibility, filterBy, sortBy, selectedGame),
+    () =>
+      filterAndSortPlayers(
+        playersWithEligibility,
+        filterBy,
+        sortBy,
+        selectedGame
+      ),
     [playersWithEligibility, sortBy, filterBy, selectedGame]
   );
 

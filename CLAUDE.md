@@ -93,7 +93,7 @@ backend/
 │   └── config.py           # SECRET_KEY, access/refresh expiry, cookie settings
 ├── picks/                  # Picks domain (DB-backed, guest + user)
 │   ├── router.py           # GET/POST /api/picks, DELETE /api/picks/{id}
-│   ├── service.py          # upsert, eligibility (30-day + playoff), anon→user migration
+│   ├── service.py          # upsert, eligibility (30-day + playoff), compute_locks, anon→user migration
 │   ├── schemas.py          # Pydantic request/response models
 │   └── dependencies.py     # resolve_owner() from JWT user or anon_id cookie
 ├── players/                # Players domain
@@ -127,7 +127,7 @@ back a top-level `routers/` or `services/` layer.
 - `GET /api/snapshot` - **Primary endpoint**: Returns entire season data (all players, games, teams) in one response for client-side filtering (30 KB)
 - `GET /api/players/all` - All players (id, name, team)
 - `GET /api/players/{player_id}/stats` - Recent game history for a player
-- `GET /api/picks` - List the caller's picks (owner resolved from JWT user or `anon_id` cookie)
+- `GET /api/picks` - Returns `{ picks, locks }`: the caller's picks (owner resolved from JWT user or `anon_id` cookie) plus per-player eligibility `locks` (`{player_id, available_on}`; `available_on` null = locked all playoffs) — the server-computed view of the 30-day/playoff rule the client renders directly
 - `POST /api/picks` - Upsert tonight's pick (one per owner per date; enforces eligibility)
 - `DELETE /api/picks/{id}` - Remove a pick
 - `POST /auth/register`, `POST /token`, `GET /users/me` - Email/password auth (JWT bearer)
@@ -156,7 +156,7 @@ frontend/
     │   ├── useSnapshot.ts  # SWR hook for the season snapshot
     │   └── usePicks.ts     # SWR hook for picks (server-backed, optimistic mutations)
     ├── snapshot.ts         # Client-side snapshot filtering utilities
-    ├── picks.ts            # Pure pick logic: eligibility + forgotten-date detection
+    ├── picks.ts            # Pure pick logic: map server locks → eligibility + forgotten-date detection
     ├── players.ts          # Sort/filter logic, SortOption type, parseSort
     └── statColumns.ts      # STAT_COLUMNS config (single source of truth for stat columns)
 ```
@@ -185,7 +185,10 @@ The app uses a **snapshot-based architecture** optimized for instant navigation:
 4. **Date Navigation**: URL changes (`?date=YYYY-MM-DD`) trigger client-side filter only
 5. **Pick Management**: picks live in the DB (`/api/picks`); the `usePicks` SWR hook fetches
    them (guest via the `anon_id` cookie, or the signed-in user) and mutates optimistically.
-   Eligibility is still computed client-side by the pure functions in `lib/picks.ts`.
+   `/api/picks` also returns server-computed eligibility `locks` (the 30-day/playoff rule);
+   `lib/picks.ts` just maps each lock's `available_on` against the viewed date — no rule logic
+   client-side. The hook is gated on `useAuth()` so an expired access token refreshes before
+   the picks fetch (an open endpoint returns guest data on a stale token, never a 401).
 
 **Key Principle**: Backend serves data from in-memory cache + database, not from NBA API directly (except for optional demo mode).
 
@@ -277,7 +280,7 @@ The NBA API has rate limits and is only called by the daily update script and ot
 The app uses a **fetch-once, filter-client-side** pattern:
 - Single `GET /api/snapshot` call on page load fetches entire season data
 - Date navigation filters cached data in-browser (instant, no API calls)
-- Picks come from `/api/picks` via the `usePicks` SWR hook; eligibility is computed client-side
+- Picks come from `/api/picks` via the `usePicks` SWR hook (gated on `useAuth()`); eligibility `locks` are computed server-side and mapped against the viewed date client-side
 - Skeleton loader displays during initial data fetch
 
 Next.js App Router uses Server Components by default. Client-side fetching is done in components marked with `'use client'` directive.

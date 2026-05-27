@@ -37,15 +37,21 @@ def _claim_guest_picks(request: Request, response: Response, db: Session, user: 
 
 
 def _set_access_cookie(response: Response, user: User) -> str:
-    """Issue a JWT for `user` and set it as an HttpOnly cookie. Returns the raw token."""
+    """Issue a JWT for `user` and set it as an HttpOnly cookie. Returns the raw token.
+
+    The cookie is a *session* cookie (no max_age) even though the JWT inside expires
+    in ACCESS_TOKEN_EXPIRE_MINUTES. Keeping the cookie present after the JWT lapses
+    lets open endpoints tell a logged-in-but-expired browser (cookie present, token
+    invalid → 401 so the client refreshes) apart from a real guest (no cookie at all).
+    The 15-min JWT is still the security boundary; a lingering expired token is inert.
+    """
     token = create_access_token(
         data={"sub": str(user.id)},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(seconds=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     response.set_cookie(
         key=ACCESS_COOKIE_NAME,
         value=token,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,  # not readable by JS — mitigates XSS token theft
         samesite=COOKIE_SAMESITE,
         secure=COOKIE_SECURE,

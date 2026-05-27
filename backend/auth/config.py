@@ -13,7 +13,7 @@ ALGORITHM = os.getenv("AUTH_ALGORITHM", "HS256")
 # Short-lived access token: the refresh flow silently renews it, so it can be
 # brief without logging the user out. Keep it small — it's a stateless JWT and
 # can't be revoked before it expires.
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10"))
 # Long-lived refresh session ("remember me"): opaque, stored server-side, so it
 # IS revocable. Rotated on every use.
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))

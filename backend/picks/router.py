@@ -9,7 +9,13 @@ from models import Owner
 from models.database import get_db
 from picks import service
 from picks.dependencies import get_current_owner
-from picks.schemas import PickBatchCreate, PickCreate, PickImportResult, PickRead
+from picks.schemas import (
+    PickBatchCreate,
+    PickCreate,
+    PickImportResult,
+    PickRead,
+    PicksRead,
+)
 
 router = APIRouter(prefix="/api/picks", tags=["picks"])
 
@@ -18,8 +24,11 @@ DbDep = Annotated[Session, Depends(get_db)]
 
 
 @router.get("")
-def list_picks(owner: OwnerDep, db: DbDep) -> list[PickRead]:
-    return service.list_picks(db, owner)
+def list_picks(owner: OwnerDep, db: DbDep) -> PicksRead:
+    return PicksRead(
+        picks=service.list_picks(db, owner),
+        locks=service.compute_locks(db, owner),
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
