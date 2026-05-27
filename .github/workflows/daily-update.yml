@@ -73,7 +73,7 @@ jobs:
           # Manual trigger uses input, scheduled uses schedule time
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "type=${{ inputs.update_type }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "0 8 * * *" ]; then
+          elif [ "${{ github.event.schedule }}" = "0 7 * * *" ]; then
             echo "type=full" >> $GITHUB_OUTPUT
           else
             echo "type=injuries-only" >> $GITHUB_OUTPUT
