@@ -91,6 +91,15 @@ backend/
 │   ├── security.py         # password hashing, JWT + refresh-token (SHA-256) primitives
 │   ├── dependencies.py     # get_current_active_user
 │   └── config.py           # SECRET_KEY, access/refresh expiry, cookie settings
+├── devices/                # Push devices + notification preferences (auth-only)
+│   ├── router.py           # POST /api/devices/register, DELETE /api/devices/{id},
+│   │                       #   GET/PATCH /api/notification-prefs
+│   ├── service.py          # device upsert/revoke, prefs get-or-create + partial update
+│   └── schemas.py          # Pydantic request/response models
+├── notifications/          # Push send abstraction (provider-agnostic)
+│   └── notifier.py         # Notifier Protocol, WebPushNotifier (pywebpush + VAPID),
+│                           #   ExpoPushNotifier stub, FakeNotifier (tests),
+│                           #   get_notifier(platform) factory, NotifierError
 ├── picks/                  # Picks domain (DB-backed, guest + user)
 │   ├── router.py           # GET/POST /api/picks, DELETE /api/picks/{id}
 │   ├── service.py          # upsert, eligibility (30-day + playoff), compute_locks, anon→user migration
@@ -133,6 +142,10 @@ back a top-level `routers/` or `services/` layer.
 - `POST /auth/register`, `POST /token`, `GET /users/me` - Email/password auth (JWT bearer)
 - `POST /auth/refresh` - Rotate the refresh session, mint a new short-lived access token (web auto-calls on 401)
 - `POST /auth/logout` - Revoke the current refresh session and clear both cookies
+- `POST /api/devices/register` - Auth required. Upsert a push device by `push_token` (platform: `ios|android|web`). Re-registering under another account transfers ownership and reactivates a previously revoked row.
+- `DELETE /api/devices/{id}` - Auth required. Soft-revoke (`revoked_at = now`); 404 if the device belongs to another user.
+- `GET /api/notification-prefs` - Auth required. Auto-creates the row with defaults on first call (`injury_alerts=True`, `deadline_alerts=True`).
+- `PATCH /api/notification-prefs` - Auth required. Partial update — only provided fields change.
 
 ### Frontend Structure
 

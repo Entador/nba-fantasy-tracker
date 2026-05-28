@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from auth.router import router as auth_router
+from devices.router import router as devices_router
 from picks.router import router as picks_router
 from players.router import router as players_router
 from snapshot.router import router as snapshot_router
@@ -63,6 +64,7 @@ async def add_process_time_header(request, call_next):
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(devices_router)
 app.include_router(picks_router)
 app.include_router(players_router, prefix="/api", tags=["players"])
 app.include_router(snapshot_router, prefix="/api", tags=["snapshot"])
