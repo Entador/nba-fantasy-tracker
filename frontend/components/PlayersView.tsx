@@ -19,16 +19,16 @@ import PlayersTable from "@/components/PlayersTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getTodayET } from "@/lib/api";
-import { usePicks } from "@/lib/hooks/usePicks";
-import { useSnapshot } from "@/lib/hooks/useSnapshot";
-import { enrichPlayersWithEligibility, getForgottenDates } from "@/lib/picks";
+import { getTodayET } from "@/lib/core/utils/date";
+import { usePicks } from "@/lib/core/hooks/usePicks";
+import { useSnapshot } from "@/lib/core/hooks/useSnapshot";
+import { enrichPlayersWithEligibility, getForgottenDates } from "@/lib/core/domain/picks";
 import {
   FilterOption,
   PlayerWithEligibility,
   SortOption,
   filterAndSortPlayers,
-} from "@/lib/players";
+} from "@/lib/core/domain/players";
 import {
   computeStatRanges,
   formatGamesForFilter,
@@ -36,7 +36,7 @@ import {
   getDeadlineForDate,
   getGamesForDate,
   getPlayersForDate,
-} from "@/lib/snapshot";
+} from "@/lib/core/domain/snapshot";
 
 function TableSkeleton() {
   return (

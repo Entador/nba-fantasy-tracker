@@ -6,8 +6,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { FilterOption } from "@/lib/players";
-import { GameFilterOption } from "@/lib/snapshot";
+import { FilterOption } from "@/lib/core/domain/players";
+import { GameFilterOption } from "@/lib/core/domain/snapshot";
 import { Check, Trophy } from "lucide-react";
 import { useState } from "react";
 

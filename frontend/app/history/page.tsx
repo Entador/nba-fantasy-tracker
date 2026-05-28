@@ -17,10 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAllPlayers, getTodayET, PlayerBasic } from "@/lib/api";
-import { usePicks } from "@/lib/hooks/usePicks";
-import { useSnapshot } from "@/lib/hooks/useSnapshot";
-import { getForgottenDates, Pick } from "@/lib/picks";
+import { getAllPlayers, type PlayerBasic } from "@/lib/core/api";
+import { getTodayET } from "@/lib/core/utils/date";
+import { usePicks } from "@/lib/core/hooks/usePicks";
+import { useSnapshot } from "@/lib/core/hooks/useSnapshot";
+import { getForgottenDates, type Pick } from "@/lib/core/domain/picks";
 import {
   AlertCircle,
   AlertTriangle,

@@ -1,12 +1,12 @@
 import useSWR, { useSWRConfig } from 'swr';
 
 import {
-  AuthUser,
   getCurrentUser,
   login as apiLogin,
   logout as apiLogout,
   register as apiRegister,
-} from '@/lib/api';
+  type AuthUser,
+} from '@/lib/core/api';
 
 const ME_KEY = '/users/me';
 const PICKS_KEY = '/api/picks';

@@ -1,25 +1,19 @@
 /**
  * Pure helpers for reasoning about Fantasy picks.
  *
- * Picks themselves live in the backend (see `lib/hooks/usePicks`); this module
- * only holds the storage-agnostic logic — eligibility and forgotten-date
- * detection — that operates on a `Pick[]` passed in by the caller.
+ * Picks themselves live in the backend (see hooks/usePicks); this module only
+ * holds the storage-agnostic logic — eligibility and forgotten-date detection —
+ * that operates on a `Pick[]` passed in by the caller.
  */
 
-import { PlayerLock } from '@/lib/api';
+import type { PlayerLock } from '../api/types';
+import { toDateKey } from '../utils/date';
 
 export interface Pick {
   id?: number; // backend pick id (used to delete); absent for optimistic entries
   playerId: number; // -1 = a deliberately skipped night (see isSkipped)
   date: string; // YYYY-MM-DD format
   isSkipped?: boolean; // true if the night was intentionally skipped (no pick made)
-}
-
-/**
- * Convert a Date object to a YYYY-MM-DD string.
- */
-export function toDateKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 type Eligibility = {
@@ -99,24 +93,20 @@ export function getForgottenDates(
   const current = new Date(currentDate);
   const forgottenDates: string[] = [];
 
-  // Build a Set of dates with picks/skips for O(1) lookup
   const pickedDates = new Set(picks.map((p) => p.date));
 
-  // Check each of the last 30 days (1-30 days ago, NOT including current date)
   for (let i = 1; i <= 30; i++) {
     const checkDate = new Date(current);
     checkDate.setDate(current.getDate() - i);
     const dateStr = toDateKey(checkDate);
 
-    // Skip if a pick/skip already exists for this date
     if (pickedDates.has(dateStr)) continue;
 
-    // Only count dates that actually had scheduled games
     const gamesForDate = snapshot.games.filter((g) => g.game_date === dateStr);
     if (gamesForDate.length > 0) {
       forgottenDates.push(dateStr);
     }
   }
 
-  return forgottenDates.sort(); // Oldest first
+  return forgottenDates.sort();
 }

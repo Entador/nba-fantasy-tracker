@@ -8,8 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { usePicks } from "@/lib/hooks/usePicks";
-import { parseAndMatchTTFLData } from "@/lib/import";
+import { usePicks } from "@/lib/core/hooks/usePicks";
+import { parseAndMatchTTFLData } from "@/lib/core/domain/import";
 import { AlertCircle, CheckCircle2, Upload, X } from "lucide-react";
 import { useState } from "react";
 

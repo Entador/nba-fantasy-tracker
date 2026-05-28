@@ -1,5 +1,5 @@
-import { EnrichedPlayer } from './snapshot';
-import { STAT_COLUMN_BY_FIELD, StatSortField } from './statColumns';
+import { STAT_COLUMN_META_BY_FIELD, type StatSortField } from './statColumns';
+import type { EnrichedPlayer } from './snapshot';
 
 export type SortField =
   | 'name'
@@ -68,7 +68,7 @@ export function filterAndSortPlayers(
   filtered.sort((a, b) => {
     if (field === 'name') return a.name.localeCompare(b.name) * flip;
     if (field === 'matchup') return a.opponent.localeCompare(b.opponent) * flip;
-    const column = STAT_COLUMN_BY_FIELD[field as StatSortField];
+    const column = STAT_COLUMN_META_BY_FIELD[field as StatSortField];
     return compareNumbers(column.accessor(a), column.accessor(b), flip);
   });
 

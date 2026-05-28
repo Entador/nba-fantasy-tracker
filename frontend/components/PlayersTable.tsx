@@ -18,9 +18,9 @@ import {
   SortField,
   SortOption,
   parseSort,
-} from "@/lib/players";
-import { STAT_COLUMNS, StatColumn, formatStat } from "@/lib/statColumns";
-import { cn } from "@/lib/utils";
+} from "@/lib/core/domain/players";
+import { STAT_COLUMNS, type StatColumn, formatStat } from "@/lib/web/statColumnView";
+import { cn } from "@/lib/web/cn";
 
 const LOGO_SIZE = 32;
 function RankTrend({ delta }: { delta: number | null }) {

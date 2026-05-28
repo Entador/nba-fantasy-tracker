@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import PlayersView from "@/components/PlayersView";
-import { getTodayET } from "@/lib/api";
+import { getTodayET } from "@/lib/core/utils/date";
 
 interface PageProps {
   searchParams: Promise<{ date?: string }>;

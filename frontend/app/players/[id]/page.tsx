@@ -19,8 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getPlayerStats, PlayerStats } from "@/lib/api";
-import { usePicks } from "@/lib/hooks/usePicks";
+import { getPlayerStats, type PlayerStats } from "@/lib/core/api";
+import { usePicks } from "@/lib/core/hooks/usePicks";
 import {
   AlertCircle,
   ArrowLeft,

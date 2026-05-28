@@ -1,8 +1,14 @@
 import useSWR from 'swr';
 
-import { PicksResponse, createPick, createPicksBatch, deletePick, getPicks } from '@/lib/api';
-import { Pick } from '@/lib/picks';
-import { useAuth } from '@/lib/hooks/useAuth';
+import {
+  createPick,
+  createPicksBatch,
+  deletePick,
+  getPicks,
+  type PicksResponse,
+} from '@/lib/core/api';
+import type { Pick } from '@/lib/core/domain/picks';
+import { useAuth } from '@/lib/core/hooks/useAuth';
 
 const KEY = '/api/picks';
 const EMPTY: PicksResponse = { picks: [], locks: [] };

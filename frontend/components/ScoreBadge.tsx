@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/web/cn";
 
 interface ScoreBadgeProps {
   score?: number;

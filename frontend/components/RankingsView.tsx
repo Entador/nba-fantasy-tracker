@@ -4,10 +4,10 @@ import { Loader2, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { PlayerInfo } from "@/components/PlayerInfo";
-import { getTodayET } from "@/lib/api";
-import { usePicks } from "@/lib/hooks/usePicks";
-import { useSnapshot } from "@/lib/hooks/useSnapshot";
-import { enrichPlayersWithEligibility } from "@/lib/picks";
+import { getTodayET } from "@/lib/core/utils/date";
+import { usePicks } from "@/lib/core/hooks/usePicks";
+import { useSnapshot } from "@/lib/core/hooks/useSnapshot";
+import { enrichPlayersWithEligibility } from "@/lib/core/domain/picks";
 
 const LOGO_SIZE = 28;
 type SortKey = "rank" | "avg_fantasy_l10" | "avg_fantasy_l30d" | "name";
