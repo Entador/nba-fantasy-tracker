@@ -19,10 +19,10 @@ import PlayersTable from "@/components/PlayersTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getTodayET } from "@/lib/core/utils/date";
-import { usePicks } from "@/lib/core/hooks/usePicks";
-import { useSnapshot } from "@/lib/core/hooks/useSnapshot";
-import { enrichPlayersWithEligibility, getForgottenDates } from "@/lib/core/domain/picks";
+import {
+  enrichPlayersWithEligibility,
+  getForgottenDates,
+} from "@/lib/core/domain/picks";
 import {
   FilterOption,
   PlayerWithEligibility,
@@ -37,6 +37,9 @@ import {
   getGamesForDate,
   getPlayersForDate,
 } from "@/lib/core/domain/snapshot";
+import { usePicks } from "@/lib/core/hooks/usePicks";
+import { useSnapshot } from "@/lib/core/hooks/useSnapshot";
+import { getTodayET } from "@/lib/core/utils/date";
 
 function TableSkeleton() {
   return (
@@ -268,7 +271,12 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
         days_until_eligible: null,
       }));
     }
-    return enrichPlayersWithEligibility(players, locks, currentDate, currentPick);
+    return enrichPlayersWithEligibility(
+      players,
+      locks,
+      currentDate,
+      currentPick
+    );
   }, [players, currentDate, isHydrated, locks, currentPick]);
 
   // Filter and sort players
@@ -480,20 +488,24 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
                   No players match filters
                 </p>
               ) : (
-                <PlayersTable
-                  players={filteredPlayers}
-                  currentPick={currentPick}
-                  isHydrated={isHydrated}
-                  loading={false}
-                  statRanges={statRanges}
-                  onPickPlayer={handlePickPlayer}
-                  onRemovePick={handleRemovePick}
-                  isPlayoffPeriod={snapshot?.metadata.is_playoff_period}
-                  currentPlayoffRound={snapshot?.metadata.current_playoff_round}
-                  lastPlayoffRound={snapshot?.metadata.last_playoff_round}
-                  sortBy={sortBy}
-                  onSortChange={setSortBy}
-                />
+                <div className="-mx-2 sm:mx-0">
+                  <PlayersTable
+                    players={filteredPlayers}
+                    currentPick={currentPick}
+                    isHydrated={isHydrated}
+                    loading={false}
+                    statRanges={statRanges}
+                    onPickPlayer={handlePickPlayer}
+                    onRemovePick={handleRemovePick}
+                    isPlayoffPeriod={snapshot?.metadata.is_playoff_period}
+                    currentPlayoffRound={
+                      snapshot?.metadata.current_playoff_round
+                    }
+                    lastPlayoffRound={snapshot?.metadata.last_playoff_round}
+                    sortBy={sortBy}
+                    onSortChange={setSortBy}
+                  />
+                </div>
               )}
             </>
           ) : null}

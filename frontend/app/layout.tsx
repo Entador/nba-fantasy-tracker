@@ -1,4 +1,4 @@
-import { BarChart2, Calendar, Clock, Trophy } from "lucide-react";
+import { BarChart2, Calendar, History, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
@@ -30,35 +30,39 @@ export default function RootLayout({
       >
         <nav className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur-md shadow-sm">
           <div className="container mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="flex h-16 items-center justify-between">
+            <div className="flex h-14 sm:h-16 items-center justify-between">
               <Link
                 href="/"
-                className="flex items-center gap-2 sm:gap-2 text-base sm:text-xl font-bold tracking-tight hover:text-primary transition-colors"
+                aria-label="NBA Fantasy Tracker — home"
+                className="flex items-center gap-2 text-base sm:text-xl font-bold tracking-tight hover:text-primary transition-colors"
               >
                 <Trophy className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
                 <p>NBA Fantasy Tracker</p>
               </Link>
-              <div className="flex items-center text-sm sm:text-base gap-3 sm:gap-6">
+              <div className="flex items-center text-sm sm:text-base gap-1 sm:gap-6">
                 <Link
                   href="/"
-                  className="flex items-center gap-1 px-1 sm:px-2 sm:gap-1.5 py-2 font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
+                  aria-label="Dashboard"
+                  className="flex items-center gap-1 px-2 sm:gap-1.5 py-2 font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
                 >
                   <Calendar className="h-5 w-5" />
-                  <span>Dashboard</span>
+                  <span className="hidden sm:inline">Dashboard</span>
                 </Link>
                 <Link
                   href="/players"
+                  aria-label="Rankings"
                   className="hidden sm:flex items-center gap-1 sm:gap-1.5 px-1 sm:px-2 py-2 font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
                 >
-                  <BarChart2 className="h-4 w-4" />
+                  <BarChart2 className="h-5 w-5" />
                   <span>Rankings</span>
                 </Link>
                 <Link
                   href="/history"
-                  className="flex items-center gap-1 px-1 sm:px-2 sm:gap-1.5 py-2 font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
+                  aria-label="History"
+                  className="flex items-center gap-1 px-2 sm:gap-1.5 py-2 font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
                 >
-                  <Clock className="h-4 w-4" />
-                  <span>History</span>
+                  <History className="h-5 w-5" />
+                  <span className="hidden sm:inline">History</span>
                 </Link>
                 <AuthNav />
               </div>
