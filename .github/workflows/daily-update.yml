@@ -94,3 +94,14 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           PROXY_URL: ${{ secrets.PROXY_URL }}
         run: poetry run python scripts/daily_update.py --injuries-only
+
+      # Fan out injury alerts + deadline reminders. Runs after the update above so
+      # injury statuses are fresh. Skipped on manual injuries-only dispatch runs.
+      - name: Run notification watchers
+        if: github.event_name == 'schedule'
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_CLAIMS_SUB: ${{ secrets.VAPID_CLAIMS_SUB }}
+        run: poetry run python scripts/run_watchers.py
