@@ -17,6 +17,9 @@ build/
 .env.local
 .env.*.local
 
+# Secrets / keys (VAPID web-push keypair, etc.)
+*.pem
+
 # IDEs
 .vscode/
 .idea/

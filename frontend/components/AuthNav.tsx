@@ -3,6 +3,7 @@
 import { LogIn, LogOut, User } from "lucide-react";
 import Link from "next/link";
 
+import NotificationToggle from "@/components/NotificationToggle";
 import {
   Popover,
   PopoverContent,
@@ -54,6 +55,7 @@ export default function AuthNav() {
           </div>
         </div>
         <div className="p-2">
+          <NotificationToggle />
           <button
             type="button"
             onClick={() => logout()}

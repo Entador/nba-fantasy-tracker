@@ -124,6 +124,18 @@ export interface PickImportResult {
   skipped: number; // player_id not found in the backend (matched names should be 0)
 }
 
+// Push devices. The push_token is platform-specific: on web it's the JSON-encoded
+// browser PushSubscription; on mobile it's an Expo push token (Month 4).
+export type DevicePlatform = 'ios' | 'android' | 'web';
+
+export interface Device {
+  id: number;
+  push_token: string;
+  platform: DevicePlatform;
+  registered_at: string | null;
+  last_seen: string | null;
+}
+
 // Auth — JWT lives in HttpOnly cookie on web; mobile will swap to a bearer token.
 export interface AuthUser {
   id: number;
