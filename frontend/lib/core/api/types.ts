@@ -105,12 +105,15 @@ export interface BackendPick {
   picked_at: string | null;
 }
 
-// Per-player eligibility lock derived server-side from the caller's picks (the
-// 30-day / playoff rule lives in the backend). available_on is the first date the
-// player can be picked again; null = locked for the rest of the playoff run.
-// Only locked players appear; anyone absent is eligible.
+// A locked window derived server-side from the caller's picks (the 30-day / playoff
+// rule lives in the backend) — one entry per pick. The window is open at both ends:
+// a player is locked on date D iff `locked_from < D` and `(available_on === null ||
+// D < available_on)`, so a pick never locks its own date or earlier — only strictly
+// after. available_on null = locked for the rest of the playoff run. Players with no
+// entry are eligible.
 export interface PlayerLock {
   player_id: number;
+  locked_from: string; // YYYY-MM-DD, the pick date (regular) or playoff start
   available_on: string | null; // YYYY-MM-DD, or null during the playoffs
 }
 

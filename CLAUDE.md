@@ -136,7 +136,7 @@ back a top-level `routers/` or `services/` layer.
 - `GET /api/snapshot` - **Primary endpoint**: Returns entire season data (all players, games, teams) in one response for client-side filtering (30 KB)
 - `GET /api/players/all` - All players (id, name, team)
 - `GET /api/players/{player_id}/stats` - Recent game history for a player
-- `GET /api/picks` - Returns `{ picks, locks }`: the caller's picks (owner resolved from JWT user or `anon_id` cookie) plus per-player eligibility `locks` (`{player_id, available_on}`; `available_on` null = locked all playoffs) — the server-computed view of the 30-day/playoff rule the client renders directly
+- `GET /api/picks` - Returns `{ picks, locks }`: the caller's picks (owner resolved from JWT user or `anon_id` cookie) plus eligibility `locks` (`{player_id, locked_from, available_on}`, one entry per pick; the open window `(locked_from, available_on)`, `available_on` null = locked all playoffs) — the server-computed view of the 30-day/playoff rule the client renders directly. Open at both ends, so a pick never locks its own date or earlier.
 - `POST /api/picks` - Upsert tonight's pick (one per owner per date; enforces eligibility)
 - `DELETE /api/picks/{id}` - Remove a pick
 - `POST /auth/register`, `POST /token`, `GET /users/me` - Email/password auth (JWT bearer)
@@ -199,8 +199,9 @@ The app uses a **snapshot-based architecture** optimized for instant navigation:
 5. **Pick Management**: picks live in the DB (`/api/picks`); the `usePicks` SWR hook fetches
    them (guest via the `anon_id` cookie, or the signed-in user) and mutates optimistically.
    `/api/picks` also returns server-computed eligibility `locks` (the 30-day/playoff rule);
-   `lib/picks.ts` just maps each lock's `available_on` against the viewed date — no rule logic
-   client-side. The hook is gated on `useAuth()` so an expired access token refreshes before
+   `domain/picks.ts` just tests whether the viewed date falls inside a lock's open window
+   `(locked_from, available_on)` — no rule logic client-side. The hook is gated on `useAuth()`
+   so an expired access token refreshes before
    the picks fetch (an open endpoint returns guest data on a stale token, never a 401).
 
 **Key Principle**: Backend serves data from in-memory cache + database, not from NBA API directly (except for optional demo mode).

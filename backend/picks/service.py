@@ -7,7 +7,6 @@ boundary (one owner can never see or touch another's picks).
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models import AnonIdentity, Owner, Pick, Player, User
@@ -76,35 +75,41 @@ def list_picks(db: Session, owner: Owner) -> list[Pick]:
 
 
 def compute_locks(db: Session, owner: Owner) -> list[PlayerLock]:
-    """Per-player 'eligible again on' dates for this owner — the read-side mirror of
-    the write-side _is_eligible rule, so the client never re-derives it.
+    """Locked windows for this owner — one entry per pick, the read-side mirror of the
+    write-side _is_eligible rule, so the client never re-derives it (it just tests
+    whether the viewed date falls inside a window).
+
+    Each window is `(locked_from, available_on)`, exclusive at both ends, so a pick
+    never locks its own date or earlier — only the days strictly after it. Returning
+    one entry per pick (not just the latest) keeps the backward-only window correct
+    when the same player is picked more than once across the season.
 
     Skips (player_id NULL) never lock anyone: the inner join to Player drops them.
-    Returns one entry per locked player; anyone absent is eligible.
     - Playoffs: any pick on/after playoff_start locks the player for the whole run
       (available_on=None), ignoring the 30-day window. Regular-season picks don't
       count, matching _is_eligible.
-    - Regular season: the player's latest pick locks them until that date + 30 days.
+    - Regular season: each pick locks the player until that pick's date + 30 days.
     """
     playoff_start = get_playoff_start_date(db)
 
-    latest_by_player = (
-        db.query(Player.nba_player_id, func.max(Pick.game_date).label("last_picked"))
+    rows = (
+        db.query(Player.nba_player_id, Pick.game_date)
         .join(Pick, Pick.player_id == Player.id)
         .filter(Pick.owner_id == owner.id)
     )
     if playoff_start is not None:
-        latest_by_player = latest_by_player.filter(Pick.game_date >= playoff_start)
-    rows = latest_by_player.group_by(Player.nba_player_id).all()
-
-    if playoff_start is not None:
-        return [PlayerLock(player_id=nba_id, available_on=None) for nba_id, _ in rows]
+        rows = rows.filter(Pick.game_date >= playoff_start)
+        return [
+            PlayerLock(player_id=nba_id, locked_from=playoff_start, available_on=None)
+            for nba_id, _ in rows.all()
+        ]
     return [
         PlayerLock(
             player_id=nba_id,
-            available_on=last_picked + timedelta(days=ELIGIBILITY_WINDOW_DAYS),
+            locked_from=picked_on,
+            available_on=picked_on + timedelta(days=ELIGIBILITY_WINDOW_DAYS),
         )
-        for nba_id, last_picked in rows
+        for nba_id, picked_on in rows.all()
     ]
 
 

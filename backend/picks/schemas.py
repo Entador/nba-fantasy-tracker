@@ -45,19 +45,21 @@ class PickRead(BaseModel):
 
 
 class PlayerLock(BaseModel):
-    """When a player the caller has already picked becomes eligible again.
+    """A locked window for a player the caller has already picked — one entry per pick.
 
-    available_on is the first date the player can be picked again:
-    - regular season: their latest pick + 30 days.
-    - playoffs: None — a playoff pick locks the player for the whole playoff run.
+    The window is the open interval `(locked_from, available_on)`, exclusive at both ends, so a
+    player is NOT locked on (or before) the date they were picked — only strictly after:
+    - regular season: locked_from = the pick date, available_on = pick date + 30 days.
+    - playoffs: locked_from = playoff start, available_on = None (locked for the whole run).
 
-    The list only contains locked players; anyone absent is eligible. The dates are
-    independent of the date being viewed, so the client computes them once and reuses
-    them across date navigation (eligible on a date D  ⟺  available_on is not None and
-    D >= available_on).
+    The client owns no rule logic: a player is locked on date D iff some entry has
+    `locked_from < D` and `(available_on is None or D < available_on)`. The bounds are
+    independent of the viewed date, so the client computes them once and reuses them
+    across date navigation. Players with no entry are eligible.
     """
 
     player_id: int  # nba_player_id, like the rest of the API
+    locked_from: date
     available_on: date | None
 
 

@@ -271,20 +271,33 @@ def test_no_picks_means_no_locks(make_client):
     assert get_locks(make_client()) == []
 
 
-def test_regular_season_lock_is_latest_pick_plus_30_days(make_client, players):
+def test_regular_season_lock_window_is_pick_date_to_plus_30_days(make_client, players):
     c = make_client()
     pick(c, players[0], D)
     assert get_locks(c) == [
-        {"player_id": players[0], "available_on": (D + timedelta(days=30)).isoformat()}
+        {
+            "player_id": players[0],
+            "locked_from": D.isoformat(),
+            "available_on": (D + timedelta(days=30)).isoformat(),
+        }
     ]
 
 
-def test_lock_tracks_the_latest_pick(make_client, players):
+def test_each_pick_locks_its_own_window(make_client, players):
     c = make_client()
     pick(c, players[0], D)
     pick(c, players[0], D + timedelta(days=31))  # legal: outside the 30-day window
     assert get_locks(c) == [
-        {"player_id": players[0], "available_on": (D + timedelta(days=61)).isoformat()}
+        {
+            "player_id": players[0],
+            "locked_from": D.isoformat(),
+            "available_on": (D + timedelta(days=30)).isoformat(),
+        },
+        {
+            "player_id": players[0],
+            "locked_from": (D + timedelta(days=31)).isoformat(),
+            "available_on": (D + timedelta(days=61)).isoformat(),
+        },
     ]
 
 
@@ -298,7 +311,13 @@ def test_skip_does_not_lock_anyone(make_client):
 def test_playoff_lock_has_no_available_on(make_client, players, playoffs):
     c = make_client()
     pick(c, players[0], PLAYOFF_START + timedelta(days=2))
-    assert get_locks(c) == [{"player_id": players[0], "available_on": None}]
+    assert get_locks(c) == [
+        {
+            "player_id": players[0],
+            "locked_from": PLAYOFF_START.isoformat(),
+            "available_on": None,
+        }
+    ]
 
 
 def test_regular_pick_does_not_lock_during_playoffs(make_client, players, playoffs):

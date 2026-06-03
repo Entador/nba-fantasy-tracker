@@ -202,6 +202,13 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
     return pick ? pick.playerId : null;
   }, [picks, currentDate]);
 
+  // Players the caller currently has picked (any date). Used to drop stale locks left
+  // by an optimistic pick change before the server-recomputed locks arrive.
+  const pickedPlayerIds = useMemo(
+    () => new Set(picks.filter((p) => !p.isSkipped).map((p) => p.playerId)),
+    [picks]
+  );
+
   // Forgotten picks — always computed from today (not currentDate) to keep the count static.
   // Wait for picks to load: a returning user's access token refresh means picks arrive a
   // round-trip after the snapshot, and computing against an empty list would flag every
@@ -275,9 +282,10 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
       players,
       locks,
       currentDate,
-      currentPick
+      currentPick,
+      pickedPlayerIds
     );
-  }, [players, currentDate, isHydrated, locks, currentPick]);
+  }, [players, currentDate, isHydrated, locks, currentPick, pickedPlayerIds]);
 
   // Filter and sort players
   const filteredPlayers = useMemo(

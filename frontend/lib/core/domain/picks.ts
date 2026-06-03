@@ -29,22 +29,28 @@ const ELIGIBLE: Eligibility = {
 };
 
 /**
- * Resolve one player's eligibility on `currentDate` from their server-computed lock.
- * `availableOn` is undefined when the player has no lock (eligible), null when locked
- * for the whole playoff run, or the date they become pickable again.
+ * Resolve one player's eligibility on `currentDate` from their server-computed locks.
+ *
+ * Each lock is an open window `(locked_from, available_on)`: the player is locked iff
+ * the viewed date sits strictly inside one of them. The backend owns the rule (window
+ * size, backward-only direction, playoff semantics); this is just a membership read,
+ * so a pick never locks its own date or earlier — only strictly after. `available_on`
+ * null means the lock runs to the end of the playoff run. No locks ⇒ eligible.
  */
-function resolveEligibility(
-  availableOn: string | null | undefined,
-  currentDate: string
-): Eligibility {
-  if (availableOn === undefined) return ELIGIBLE;
-  if (availableOn === null) {
+function resolveEligibility(locks: PlayerLock[], currentDate: string): Eligibility {
+  // ISO dates compare lexicographically, so plain string comparison works.
+  const active = locks.find(
+    (l) =>
+      l.locked_from < currentDate &&
+      (l.available_on === null || currentDate < l.available_on)
+  );
+  if (!active) return ELIGIBLE;
+
+  if (active.available_on === null) {
     return { is_eligible: false, last_picked_date: null, days_until_eligible: null };
   }
-  if (currentDate >= availableOn) return ELIGIBLE; // ISO dates compare lexicographically
-
   const days = Math.round(
-    (new Date(availableOn).getTime() - new Date(currentDate).getTime()) / 86_400_000
+    (new Date(active.available_on).getTime() - new Date(currentDate).getTime()) / 86_400_000
   );
   return { is_eligible: false, last_picked_date: null, days_until_eligible: days };
 }
@@ -53,12 +59,20 @@ function resolveEligibility(
  * Enrich players with eligibility derived from the server-computed `locks`.
  *
  * The 30-day / playoff rule lives in the backend (picks/service.compute_locks); each
- * lock just says when a picked player is eligible again, independent of the viewed
- * date — so this stays a cheap pure read across all date navigation.
+ * lock is a window, independent of the viewed date — so this stays a cheap pure read
+ * across all date navigation.
  *
  * The player currently selected for `currentDate` is always eligible: that's your
- * active pick, not a lock against keeping it tonight. (A player picked today can't
- * have any other lock — you can't pick the same player twice within the window.)
+ * active pick, not a lock against keeping it tonight. (Regular-season windows already
+ * exclude the pick's own date, so this only matters during the playoffs, where a
+ * pick locks the player for every other date in the run.)
+ *
+ * `pickedPlayerIds` is the set of players in the caller's current picks. Every lock the
+ * server returns is derived from one of those picks, so a lock for a player who is no
+ * longer picked is stale (the picks mutated optimistically before the recomputed locks
+ * landed) and is ignored — this is what stops a just-unpicked player from briefly
+ * showing as locked. Steady state it's a no-op (locks ⊆ picked players). Pass null to
+ * skip the check.
  *
  * Pure function — call from a useMemo in the component.
  */
@@ -66,18 +80,22 @@ export function enrichPlayersWithEligibility<T extends { player_id: number }>(
   players: T[],
   locks: PlayerLock[],
   currentDate: string,
-  currentPickId: number | null = null
+  currentPickId: number | null = null,
+  pickedPlayerIds: Set<number> | null = null
 ): Array<T & Eligibility> {
-  const availableByPlayer = new Map(locks.map((l) => [l.player_id, l.available_on]));
+  const locksByPlayer = new Map<number, PlayerLock[]>();
+  for (const lock of locks) {
+    if (pickedPlayerIds && !pickedPlayerIds.has(lock.player_id)) continue; // stale lock
+    const existing = locksByPlayer.get(lock.player_id);
+    if (existing) existing.push(lock);
+    else locksByPlayer.set(lock.player_id, [lock]);
+  }
 
   return players.map((player) => ({
     ...player,
-    ...resolveEligibility(
-      player.player_id === currentPickId
-        ? undefined
-        : availableByPlayer.get(player.player_id),
-      currentDate
-    ),
+    ...(player.player_id === currentPickId
+      ? ELIGIBLE
+      : resolveEligibility(locksByPlayer.get(player.player_id) ?? [], currentDate)),
   }));
 }
 
