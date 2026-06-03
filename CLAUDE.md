@@ -29,8 +29,18 @@ FANTASY_SCORE = POSITIVE - NEGATIVE
 ### Backend (from `/backend`)
 
 ```bash
-# Install dependencies
+# Install dependencies (API + cron deps only)
 poetry install
+# Add the ML training stack (lightgbm/scikit-learn/matplotlib/joblib) when working in ml/.
+# Kept out of the default install so it never weighs down the deployed API or the cron.
+poetry install --with ml
+
+# Regenerate requirements.txt (what Vercel installs) after changing runtime deps.
+# Runtime/`main` group only — excludes the ml + dev groups, so the deployed function
+# stays lean. Keep this in sync with pyproject or the deploy silently drifts.
+poetry install --only main --sync --dry-run 2>&1 \
+  | sed -nE 's/^  - Installing ([a-zA-Z0-9._-]+) \(([^):]+)\).*/\1==\2/p' \
+  | sort -f > requirements.txt
 
 # Run development server
 poetry run uvicorn app:app --reload
@@ -125,7 +135,7 @@ backend/
 │   └── *.py                # Other maintenance scripts
 ├── alembic/                # DB migrations (versions/ holds the migration chain)
 ├── tests/                  # pytest suite, mirrors backend/ (auth/, picks/, core/, services/)
-└── ml/                     # Player-projection modeling (data/, training/, models/, notebooks/) — not on request path
+└── ml/                     # Player-projection modeling (data/, training/, models/, notebooks/) — not on request path; deps live in the opt-in `ml` group (poetry install --with ml)
 ```
 
 **Adding a new domain** (e.g. `devices/`): create a package with `router.py` +

@@ -1,0 +1,9 @@
+# Keep the deployed serverless function lean: exclude everything the request path
+# (app.py -> routers) never imports. ML lives in ml/ and is trained offline; tests and
+# notebooks are dev-only. Dependencies are controlled separately via requirements.txt
+# (generated from the Poetry `main` group, without the `ml` group).
+ml/
+tests/
+*.ipynb
+__pycache__/
+.pytest_cache/
