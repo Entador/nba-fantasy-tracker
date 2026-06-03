@@ -47,7 +47,7 @@ def _set_access_cookie(response: Response, user: User) -> str:
     """
     token = create_access_token(
         data={"sub": str(user.id)},
-        expires_delta=timedelta(seconds=ACCESS_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     response.set_cookie(
         key=ACCESS_COOKIE_NAME,
