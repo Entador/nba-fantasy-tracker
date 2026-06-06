@@ -3,7 +3,9 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
+
+from core.schemas import ORMModel
 
 
 Platform = Literal["ios", "android", "web"]
@@ -19,9 +21,7 @@ class DeviceRegister(BaseModel):
     platform: Platform
 
 
-class DeviceRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class DeviceRead(ORMModel):
     id: int
     push_token: str
     platform: Platform
@@ -29,9 +29,7 @@ class DeviceRead(BaseModel):
     last_seen: datetime | None
 
 
-class NotificationPrefRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class NotificationPrefRead(ORMModel):
     injury_alerts: bool
     deadline_alerts: bool
 

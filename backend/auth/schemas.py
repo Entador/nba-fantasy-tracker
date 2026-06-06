@@ -1,6 +1,8 @@
 """Pydantic models for auth requests/responses."""
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
+
+from core.schemas import ORMModel
 
 
 class Token(BaseModel):
@@ -28,10 +30,8 @@ class UserCreate(BaseModel):
         return v
 
 
-class UserRead(BaseModel):
+class UserRead(ORMModel):
     """Public view of a user. Never exposes hashed_password."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     id: int
     email: str | None
