@@ -273,6 +273,25 @@ poetry run python scripts/daily_update.py --dry-run
 
 ## Important Patterns
 
+### FastAPI Conventions (logging & async)
+
+Conventions we enforce in the backend (full status in
+[`docs/best-practices-fastapi-plan.md`](docs/best-practices-fastapi-plan.md)):
+
+- **Logging, not `print()`.** Each module does `logger = logging.getLogger(__name__)`.
+  `core/logging.py` owns config (call `configure_logging()` once at startup); it sets
+  per-request `request_id` + `user_id` context, `LOG_LEVEL`/`LOG_JSON`/`LOG_COLOR` env knobs,
+  and routes uvicorn's loggers through the same format. Use `logger.exception(...)` in
+  `except` blocks to capture the traceback.
+- **Never log secrets/PII** — log IDs and messages only (no passwords, tokens, push
+  subscriptions, DB creds; treat email as PII).
+- **Don't leak exceptions to clients.** Log the detail server-side; return a generic
+  `HTTPException` message (no `str(e)` in `detail`).
+- **`def` for blocking endpoints/deps** (DB calls, password hashing). Reserve `async def`
+  for genuinely non-blocking work — blocking code in `async def` stalls the event loop.
+- **Validation lives in Pydantic models**, not in route bodies. Let return-type annotations
+  drive `response_model`; return ORM objects/dicts.
+
 ### Backend Dependency Injection
 
 All routers use FastAPI's dependency injection for database sessions:
