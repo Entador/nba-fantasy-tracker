@@ -8,7 +8,13 @@ fails loudly if it ever reaches production. Generate a real one with:
 
 import os
 
-SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "dev-only-insecure-secret-change-me")
+_DEFAULT_SECRET_KEY = "dev-only-insecure-secret-change-me"
+SECRET_KEY = os.getenv("AUTH_SECRET_KEY", _DEFAULT_SECRET_KEY)
+# Fail loudly if the insecure dev default reaches production. COOKIE_SECURE=true is
+# our prod signal (set on the deployed env), so a forgotten AUTH_SECRET_KEY crashes
+# startup instead of silently signing real JWTs with a publicly known string.
+if SECRET_KEY == _DEFAULT_SECRET_KEY and os.getenv("COOKIE_SECURE", "false").lower() == "true":
+    raise RuntimeError("AUTH_SECRET_KEY must be set in production (COOKIE_SECURE=true)")
 ALGORITHM = os.getenv("AUTH_ALGORITHM", "HS256")
 # Short-lived access token: the refresh flow silently renews it, so it can be
 # brief without logging the user out. Keep it small — it's a stateless JWT and
