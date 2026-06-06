@@ -12,6 +12,7 @@ from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import Session
 
 from auth.config import ACCESS_COOKIE_NAME, ALGORITHM, SECRET_KEY
+from core.logging import user_id_var
 from models import User
 from models.database import get_db
 
@@ -37,11 +38,16 @@ def _user_from_token(token: str | None, db: Session) -> User | None:
     except InvalidTokenError:
         return None
 
-    return (
+    user = (
         db.query(User)
         .filter(User.id == int(user_id), User.deleted_at.is_(None))
         .first()
     )
+    # Bind the user id to the log context for this request (id only — never email
+    # or any credential). No-ops for guests, who keep the default "-".
+    if user is not None:
+        user_id_var.set(str(user.id))
+    return user
 
 
 async def get_current_user(

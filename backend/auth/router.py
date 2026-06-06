@@ -95,7 +95,7 @@ def _start_session(
 
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
-async def register(
+def register(
     payload: UserCreate,
     request: Request,
     response: Response,
@@ -115,7 +115,7 @@ async def register(
 
 
 @router.post("/token")
-async def login(
+def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     request: Request,
     response: Response,
@@ -141,7 +141,7 @@ async def login(
 
 
 @router.post("/auth/refresh")
-async def refresh(
+def refresh(
     request: Request,
     response: Response,
     db: Annotated[Session, Depends(get_db)],
@@ -164,7 +164,7 @@ async def refresh(
 
 
 @router.post("/auth/logout")
-async def logout(request: Request, response: Response, db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
+def logout(request: Request, response: Response, db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
     # Revoke the server-side session so the refresh token can't be reused.
     raw_token = request.cookies.get(REFRESH_COOKIE_NAME)
     if raw_token:
@@ -180,7 +180,7 @@ async def logout(request: Request, response: Response, db: Annotated[Session, De
 
 
 @router.get("/users/me")
-async def read_users_me(
+def read_users_me(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> UserRead:
     return current_user

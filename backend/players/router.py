@@ -1,5 +1,5 @@
 
-import traceback
+import logging
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -8,6 +8,8 @@ from sqlalchemy import or_
 from models.database import get_db
 from models import Game, FantasyScore
 from core.cache import app_cache
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -53,10 +55,9 @@ def get_all_players(db: Session = Depends(get_db)):
             })
 
         return result
-    except Exception as e:
-        print(f"Error in get_all_players: {e}")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error fetching all players: {str(e)}")
+    except Exception:
+        logger.exception("Error in get_all_players")
+        raise HTTPException(status_code=500, detail="Error fetching all players")
 
 
 @router.get("/players/{player_id}/stats")
@@ -154,7 +155,6 @@ def get_player_stats(player_id: int, db: Session = Depends(get_db)):
 
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"Error in get_player_stats: {e}")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error fetching player stats: {str(e)}")
+    except Exception:
+        logger.exception("Error in get_player_stats")
+        raise HTTPException(status_code=500, detail="Error fetching player stats")

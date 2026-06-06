@@ -1,4 +1,6 @@
+import logging
 import os
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -12,7 +14,11 @@ from picks.router import router as picks_router
 from players.router import router as players_router
 from snapshot.router import router as snapshot_router
 from core.cache import app_cache
+from core.logging import color_status, configure_logging, request_id_var
 from models.database import SessionLocal, get_db
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -20,10 +26,9 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         app_cache.load_schedule(db)
-        print("App ready!")
-    except Exception as e:
-        print(f"Warning: Could not pre-load cache: {e}")
-        print("App will continue but without cached data")
+        logger.info("App ready!")
+    except Exception:
+        logger.exception("Could not pre-load cache; app will continue without cached data")
     finally:
         db.close()
     yield
@@ -54,12 +59,25 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def add_process_time_header(request, call_next):
+async def request_context(request, call_next):
+    # Reuse an upstream request id if present (proxy/load balancer), else mint one.
+    # Bound to a contextvar so every log line in this request carries it.
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
+    token = request_id_var.set(request_id)
     start_time = datetime.now()
-    response = await call_next(request)
-    process_time = (datetime.now() - start_time).total_seconds()
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
+    logger.debug("→ %s %s", request.method, request.url.path)
+    try:
+        response = await call_next(request)
+        process_time = (datetime.now() - start_time).total_seconds()
+        response.headers["X-Process-Time"] = str(process_time)
+        response.headers["X-Request-ID"] = request_id
+        logger.debug(
+            "← %s %s %s (%.3fs)",
+            request.method, request.url.path, color_status(response.status_code), process_time,
+        )
+        return response
+    finally:
+        request_id_var.reset(token)
 
 
 # Include routers
@@ -93,5 +111,6 @@ def refresh_cache(db: Session = Depends(get_db)):
             "teams_count": len(app_cache.teams_by_id),
             "players_count": len(app_cache.players_by_id),
         }
-    except Exception as e:
-        return {"status": "error", "message": f"Failed to refresh cache: {str(e)}"}
+    except Exception:
+        logger.exception("Admin cache refresh failed")
+        return {"status": "error", "message": "Failed to refresh cache"}

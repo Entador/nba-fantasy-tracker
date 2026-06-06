@@ -7,11 +7,14 @@ Pre-loads static/semi-static data on app startup to reduce database queries:
 - Player rosters (semi-static, updated daily for injuries/trades)
 """
 
+import logging
 from typing import Dict, List, Optional
 from datetime import date, datetime, timezone
 from models import Player, Team, Game
 from sqlalchemy.orm import joinedload
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 INJURY_TTL_SECONDS = 3600  # 1 hour
 
@@ -36,12 +39,12 @@ class AppCache:
             db: SQLAlchemy database session
         """
 
-        print("Loading game schedule and players into memory...")
+        logger.info("Loading game schedule and players into memory...")
 
         # Load all teams
         teams = db.query(Team).all()
         self.teams_by_id = {team.id: team for team in teams}
-        print(f"  Loaded {len(teams)} teams")
+        logger.info("Loaded %d teams", len(teams))
 
         # Load all games with relationships eager-loaded
         games = (
@@ -58,7 +61,7 @@ class AppCache:
                 self.games_by_date[game_date] = []
             self.games_by_date[game_date].append(game)
 
-        print(f"  Loaded {len(games)} games across {len(self.games_by_date)} dates")
+        logger.info("Loaded %d games across %d dates", len(games), len(self.games_by_date))
 
         # Load all players with team relationship eager-loaded
         players = (
@@ -80,7 +83,7 @@ class AppCache:
 
         self.loaded = True
         self._injuries_loaded_at = datetime.now(timezone.utc)
-        print(f"  Loaded {len(players)} players")
+        logger.info("Loaded %d players", len(players))
 
     def get_games_for_date(self, target_date: date) -> List:
         """
@@ -205,7 +208,7 @@ class AppCache:
                 player.injury_details = row.injury_details
 
         self._injuries_loaded_at = now
-        print(f"Cache: refreshed injury data for {len(rows)} players")
+        logger.info("Cache: refreshed injury data for %d players", len(rows))
         return True
 
     def clear(self):

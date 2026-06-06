@@ -8,7 +8,9 @@ from models import AppMetadata
 from core.cache import app_cache
 from players.service import batch_calculate_averages, get_playoff_round
 
-import traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -78,6 +80,11 @@ def get_snapshot(db: Session = Depends(get_db)):
             p.id: i + 1
             for i, p in enumerate(sorted(shared_pool, key=lambda p: averages[p.id]['avg_fantasy_week_ago'], reverse=True))
         }
+
+        logger.debug(
+            "snapshot: %d players, %d games, %d teams",
+            len(all_players), len(all_games), len(all_teams),
+        )
 
         # Build players response
         players_data = []
@@ -178,10 +185,9 @@ def get_snapshot(db: Session = Depends(get_db)):
             'teams': teams_data,
         }
 
-    except Exception as e:
-        print(f"Error in get_snapshot: {e}")
-        print(traceback.format_exc())
+    except Exception:
+        logger.exception("Error in get_snapshot")
         raise HTTPException(
             status_code=500,
-            detail=f"Error generating snapshot: {str(e)}"
+            detail="Error generating snapshot"
         )

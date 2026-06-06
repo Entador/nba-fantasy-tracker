@@ -13,6 +13,7 @@ so SQLite tests and Postgres prod behave identically.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
@@ -33,6 +34,8 @@ from models import (
     UserDevice,
 )
 from notifications.notifier import NotifierError, get_notifier
+
+logger = logging.getLogger(__name__)
 
 # A player "on the report" — any of these statuses warrants an alert.
 LISTED_STATUSES = {"Probable", "Questionable", "Doubtful", "Out"}
@@ -162,6 +165,7 @@ def dispatch(
     One bad device/user must not stall the batch: NotifierError is caught per device
     and recorded as status=failed (so the next run retries it).
     """
+    sent = failed = 0
     for p in planned:
         devices = (
             db.query(UserDevice)
@@ -174,8 +178,16 @@ def dispatch(
                     device.push_token, p.title, p.body, p.payload
                 )
                 status = NotificationStatus.sent
-            except NotifierError:
+                sent += 1
+            except NotifierError as e:
+                # The push didn't reach the device. Recorded as failed (next run
+                # retries) — log it so the failure isn't invisible in the DB.
+                logger.warning(
+                    "push send failed: user=%s platform=%s type=%s: %s",
+                    p.user_id, device.platform, p.type, e,
+                )
                 status = NotificationStatus.failed
+                failed += 1
             db.add(
                 NotificationLog(
                     user_id=p.user_id,
@@ -185,6 +197,7 @@ def dispatch(
                 )
             )
     db.commit()
+    logger.info("notification dispatch: sent=%d failed=%d", sent, failed)
 
 
 # --- Convenience wrappers (used by the cron script) ----------------------

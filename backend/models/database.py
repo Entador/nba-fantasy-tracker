@@ -1,9 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+import logging
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -18,7 +21,7 @@ else:
     # Allow server to start without database for testing API docs
     engine = None
     SessionLocal = None
-    print("⚠️  WARNING: DATABASE_URL not set. Database operations will fail.")
+    logger.warning("DATABASE_URL not set. Database operations will fail.")
 
 Base = declarative_base()
 
