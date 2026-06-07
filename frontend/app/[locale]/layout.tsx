@@ -6,7 +6,6 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import AuthNav from "@/components/AuthNav";
-import LocaleSwitcher from "@/components/LocaleSwitcher";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
@@ -91,7 +90,6 @@ export default async function RootLayout({
                     <History className="h-5 w-5" />
                     <span className="hidden sm:inline">{t("history")}</span>
                   </Link>
-                  <LocaleSwitcher />
                   <AuthNav />
                 </div>
               </div>

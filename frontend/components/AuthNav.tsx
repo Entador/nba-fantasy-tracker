@@ -1,9 +1,10 @@
 "use client";
 
-import { LogIn, LogOut, User } from "lucide-react";
+import { Globe, LogIn, LogOut, User } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Link } from "@/i18n/navigation";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
 import NotificationToggle from "@/components/NotificationToggle";
 import {
   Popover,
@@ -26,10 +27,13 @@ export default function AuthNav() {
 
   if (!isAuthenticated) {
     return (
-      <Link href="/login" className={navItemClass}>
-        <LogIn className="h-5 w-5" />
-        <span className="hidden sm:inline">{t("signIn")}</span>
-      </Link>
+      <>
+        <LocaleSwitcher />
+        <Link href="/login" className={navItemClass}>
+          <LogIn className="h-5 w-5" />
+          <span className="hidden sm:inline">{t("signIn")}</span>
+        </Link>
+      </>
     );
   }
 
@@ -57,6 +61,11 @@ export default function AuthNav() {
           </div>
         </div>
         <div className="p-2">
+          <div className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground">
+            <Globe className="h-4 w-4 shrink-0" />
+            <span className="flex-1">{t("language")}</span>
+            <LocaleSwitcher />
+          </div>
           <NotificationToggle />
           <button
             type="button"
