@@ -2,6 +2,7 @@
 
 import { HistoryStats } from "@/components/HistoryStats";
 import ImportPicks from "@/components/ImportPicks";
+import { ScoreBadge } from "@/components/ScoreBadge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -318,11 +319,9 @@ export default function HistoryPage() {
                   <TableCell className="hidden sm:table-cell text-muted-foreground">
                     {pick.team || "—"}
                   </TableCell>
-                  <TableCell className="text-right font-mono">
+                  <TableCell className="text-right">
                     {pick.fantasyScore != null ? (
-                      <span className={pick.fantasyScore >= 0 ? "text-foreground" : "text-destructive"}>
-                        {pick.fantasyScore}
-                      </span>
+                      <ScoreBadge score={pick.fantasyScore} />
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
