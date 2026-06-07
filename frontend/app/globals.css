@@ -4,8 +4,8 @@
 
 body {
   margin: 0;
-  background-color: hsl(var(--color-background));
-  color: hsl(var(--color-foreground));
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 * {
@@ -205,12 +205,13 @@ button, [role="button"], a {
 }
 
 :root {
-  --background: oklch(1.0000 0 0);
-  --foreground: oklch(0.2079 0.0399 265.7275);
+  color-scheme: light;
+  --background: oklch(0.9900 0.0020 264);
+  --foreground: oklch(0.3000 0.0340 265.7275);
   --card: oklch(1.0000 0 0);
-  --card-foreground: oklch(0.2079 0.0399 265.7275);
+  --card-foreground: oklch(0.3000 0.0340 265.7275);
   --popover: oklch(1.0000 0 0);
-  --popover-foreground: oklch(0.2079 0.0399 265.7275);
+  --popover-foreground: oklch(0.3000 0.0340 265.7275);
   --primary: oklch(0.4909 0.1773 262.1352);
   --primary-foreground: oklch(0.9848 0 0);
   --secondary: oklch(0.5323 0.1932 18.8948);
@@ -260,38 +261,40 @@ button, [role="button"], a {
 }
 
 .dark {
-  --background: oklch(0.2079 0.0399 265.7275);
-  --foreground: oklch(0.9838 0.0035 247.8583);
-  --card: oklch(0.2079 0.0399 265.7275);
-  --card-foreground: oklch(0.9838 0.0035 247.8583);
-  --popover: oklch(0.2079 0.0399 265.7275);
-  --popover-foreground: oklch(0.9838 0.0035 247.8583);
-  --primary: oklch(0.5716 0.1737 262.3521);
-  --primary-foreground: oklch(0.2079 0.0399 265.7275);
-  --secondary: oklch(0.6017 0.1961 16.2149);
-  --secondary-foreground: oklch(0.9838 0.0035 247.8583);
-  --muted: oklch(0.2800 0.0369 259.9740);
-  --muted-foreground: oklch(0.7107 0.0351 256.7877);
-  --accent: oklch(0.7410 0.1645 52.1676);
-  --accent-foreground: oklch(0.9838 0.0035 247.8583);
-  --destructive: oklch(0.3959 0.1331 25.7205);
-  --destructive-foreground: oklch(0.9838 0.0035 247.8583);
-  --border: oklch(0.3678 0.0532 259.9303);
-  --input: oklch(0.3678 0.0532 259.9303);
-  --ring: oklch(0.5716 0.1737 262.3521);
-  --chart-1: oklch(0.5716 0.1737 262.3521);
-  --chart-2: oklch(0.6017 0.1961 16.2149);
-  --chart-3: oklch(0.7410 0.1645 52.1676);
+  color-scheme: dark;
+  /* Elevation ladder (cool hue ~264): bg < card/popover < muted < accent < border */
+  --background: oklch(0.1729 0.0156 264);
+  --foreground: oklch(0.9100 0.0060 264);
+  --card: oklch(0.2120 0.0200 264);
+  --card-foreground: oklch(0.9100 0.0060 264);
+  --popover: oklch(0.2120 0.0200 264);
+  --popover-foreground: oklch(0.9100 0.0060 264);
+  --primary: oklch(0.6230 0.1730 262);
+  --primary-foreground: oklch(0.9800 0.0050 264);
+  --secondary: oklch(0.6000 0.1900 16);
+  --secondary-foreground: oklch(0.9800 0.0050 264);
+  --muted: oklch(0.2520 0.0200 264);
+  --muted-foreground: oklch(0.7050 0.0300 264);
+  --accent: oklch(0.2720 0.0250 264);
+  --accent-foreground: oklch(0.9100 0.0060 264);
+  --destructive: oklch(0.6200 0.2050 25);
+  --destructive-foreground: oklch(0.9800 0.0050 264);
+  --border: oklch(0.3000 0.0250 264);
+  --input: oklch(0.3000 0.0250 264);
+  --ring: oklch(0.6230 0.1730 262);
+  --chart-1: oklch(0.6230 0.1730 262);
+  --chart-2: oklch(0.6000 0.1900 16);
+  --chart-3: oklch(0.7400 0.1600 52);
   --chart-4: oklch(0.7630 0.1536 147.5033);
-  --chart-5: oklch(0.5980 0.1839 304.4911);
-  --sidebar: oklch(0.2060 0.0128 276.3178);
-  --sidebar-foreground: oklch(0.9838 0.0035 247.8583);
-  --sidebar-primary: oklch(0.6630 0.1328 263.1102);
-  --sidebar-primary-foreground: oklch(0.2060 0.0128 276.3178);
-  --sidebar-accent: oklch(0.2560 0.0182 276.1678);
-  --sidebar-accent-foreground: oklch(0.9838 0.0035 247.8583);
-  --sidebar-border: oklch(0.3037 0.0233 276.0739);
-  --sidebar-ring: oklch(0.6630 0.1328 263.1102);
+  --chart-5: oklch(0.6300 0.1800 304);
+  --sidebar: oklch(0.2120 0.0200 264);
+  --sidebar-foreground: oklch(0.9700 0.0050 264);
+  --sidebar-primary: oklch(0.6230 0.1730 262);
+  --sidebar-primary-foreground: oklch(0.9800 0.0050 264);
+  --sidebar-accent: oklch(0.2720 0.0250 264);
+  --sidebar-accent-foreground: oklch(0.9700 0.0050 264);
+  --sidebar-border: oklch(0.3000 0.0250 264);
+  --sidebar-ring: oklch(0.6230 0.1730 262);
   --font-sans: "Inter", sans-serif;
   --font-serif: "Playfair Display", serif;
   --font-mono: "Fira Code", monospace;

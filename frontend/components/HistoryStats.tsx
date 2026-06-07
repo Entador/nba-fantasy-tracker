@@ -63,7 +63,7 @@ const BUCKET_COLORS = [
 function scoreColor(score: number): string {
   if (score >= 50) return "hsl(158 64% 32%)";
   if (score >= 40) return "hsl(142 76% 36%)";
-  if (score >= 20) return "hsl(var(--foreground))";
+  if (score >= 20) return "var(--foreground)";
   return "hsl(0 84% 60%)";
 }
 
@@ -297,17 +297,17 @@ export function HistoryStats({ picks }: HistoryStatsProps) {
                     >
                       <stop
                         offset="0%"
-                        stopColor="hsl(var(--primary))"
+                        stopColor="var(--primary)"
                         stopOpacity={0.3}
                       />
                       <stop
                         offset="85%"
-                        stopColor="hsl(var(--primary))"
+                        stopColor="var(--primary)"
                         stopOpacity={0.03}
                       />
                       <stop
                         offset="100%"
-                        stopColor="hsl(var(--primary))"
+                        stopColor="var(--primary)"
                         stopOpacity={0}
                       />
                     </linearGradient>
@@ -315,19 +315,19 @@ export function HistoryStats({ picks }: HistoryStatsProps) {
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
-                    stroke="hsl(var(--border))"
+                    stroke="var(--border)"
                     strokeOpacity={0.6}
                   />
                   <XAxis
                     dataKey="date"
-                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                     tickLine={false}
                     axisLine={false}
                     tickMargin={6}
                     interval="preserveStartEnd"
                   />
                   <YAxis
-                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                     tickLine={false}
                     axisLine={false}
                     domain={[yMin, yMax]}
@@ -337,39 +337,39 @@ export function HistoryStats({ picks }: HistoryStatsProps) {
                   <Tooltip
                     content={<TimelineTooltip />}
                     cursor={{
-                      stroke: "hsl(var(--muted-foreground))",
+                      stroke: "var(--muted-foreground)",
                       strokeOpacity: 0.25,
                       strokeDasharray: "4 4",
                     }}
                   />
                   <ReferenceLine
                     y={avg}
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke="var(--muted-foreground)"
                     strokeDasharray="6 4"
                     strokeOpacity={0.45}
                     label={{
                       value: `∅ ${avg}`,
                       position: "insideTopRight",
                       fontSize: 9,
-                      fill: "hsl(var(--muted-foreground))",
+                      fill: "var(--muted-foreground)",
                       fontWeight: 600,
                     }}
                   />
                   <Area
                     type="monotone"
                     dataKey="score"
-                    stroke="hsl(var(--primary))"
+                    stroke="var(--primary)"
                     strokeWidth={2.5}
                     fill="url(#historyGradient)"
                     dot={{
                       r: 2.5,
-                      fill: "hsl(var(--primary))",
+                      fill: "var(--primary)",
                       strokeWidth: 0,
                     }}
                     activeDot={{
                       r: 5,
-                      fill: "hsl(var(--primary))",
-                      stroke: "hsl(var(--background))",
+                      fill: "var(--primary)",
+                      stroke: "var(--background)",
                       strokeWidth: 2,
                     }}
                     animationDuration={600}
@@ -397,26 +397,26 @@ export function HistoryStats({ picks }: HistoryStatsProps) {
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
-                    stroke="hsl(var(--border))"
+                    stroke="var(--border)"
                     strokeOpacity={0.6}
                   />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                     tickLine={false}
                     axisLine={false}
                     tickMargin={4}
                   />
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
                     tickLine={false}
                     axisLine={false}
                     width={22}
                   />
                   <Tooltip
                     content={<DistributionTooltip />}
-                    cursor={{ fill: "hsl(var(--muted))", fillOpacity: 0.4 }}
+                    cursor={{ fill: "var(--muted)", fillOpacity: 0.4 }}
                   />
                   <Bar
                     dataKey="count"

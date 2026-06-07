@@ -6,6 +6,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import AuthNav from "@/components/AuthNav";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
@@ -49,7 +50,14 @@ export default async function RootLayout({
   const t = await getTranslations("Nav");
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('theme');var d=t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme: dark)').matches);var e=document.documentElement;if(d){e.classList.add('dark')}e.style.colorScheme=d?'dark':'light'})()`,
+          }}
+        />
+      </head>
       <body
         className={`${inter.className} min-h-screen bg-background antialiased flex flex-col`}
       >
@@ -90,6 +98,7 @@ export default async function RootLayout({
                     <History className="h-5 w-5" />
                     <span className="hidden sm:inline">{t("history")}</span>
                   </Link>
+                  <ThemeToggle />
                   <AuthNav />
                 </div>
               </div>

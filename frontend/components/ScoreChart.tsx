@@ -44,7 +44,7 @@ function CustomDot(props: {
           cx={cx}
           cy={cy}
           r={8}
-          fill="hsl(var(--primary))"
+          fill="var(--primary)"
           fillOpacity={0.2}
         />
       )}
@@ -57,9 +57,9 @@ function CustomDot(props: {
             ? "hsl(142 76% 36%)"
             : isBad
             ? "hsl(0 84% 60%)"
-            : "hsl(var(--primary))"
+            : "var(--primary)"
         }
-        stroke={isPicked ? "hsl(var(--background))" : "none"}
+        stroke={isPicked ? "var(--background)" : "none"}
         strokeWidth={isPicked ? 2 : 0}
       />
     </g>
@@ -136,12 +136,12 @@ export function ScoreChart({ games, avgScore }: ScoreChartProps) {
             <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
               <stop
                 offset="0%"
-                stopColor="hsl(var(--primary))"
+                stopColor="var(--primary)"
                 stopOpacity={0.25}
               />
               <stop
                 offset="100%"
-                stopColor="hsl(var(--primary))"
+                stopColor="var(--primary)"
                 stopOpacity={0.02}
               />
             </linearGradient>
@@ -149,19 +149,19 @@ export function ScoreChart({ games, avgScore }: ScoreChartProps) {
           <CartesianGrid
             strokeDasharray="3 3"
             vertical={false}
-            stroke="hsl(var(--border))"
+            stroke="var(--border)"
             strokeOpacity={0.5}
           />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
             tickLine={false}
             axisLine={false}
             tickMargin={4}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
             tickLine={false}
             axisLine={false}
             domain={[yMin, yMax]}
@@ -171,28 +171,28 @@ export function ScoreChart({ games, avgScore }: ScoreChartProps) {
           <Tooltip
             content={<CustomTooltip />}
             cursor={{
-              stroke: "hsl(var(--muted-foreground))",
+              stroke: "var(--muted-foreground)",
               strokeOpacity: 0.3,
               strokeDasharray: "4 4",
             }}
           />
           <ReferenceLine
             y={avgScore}
-            stroke="hsl(var(--muted-foreground))"
+            stroke="var(--muted-foreground)"
             strokeDasharray="6 4"
             strokeOpacity={0.6}
           />
           <Area
             type="monotone"
             dataKey="score"
-            stroke="hsl(var(--primary))"
+            stroke="var(--primary)"
             strokeWidth={2.5}
             fill="url(#scoreGradient)"
             dot={<CustomDot />}
             activeDot={{
               r: 6,
-              fill: "hsl(var(--primary))",
-              stroke: "hsl(var(--background))",
+              fill: "var(--primary)",
+              stroke: "var(--background)",
               strokeWidth: 2,
             }}
             animationDuration={800}
