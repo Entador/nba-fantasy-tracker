@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, UserCheck } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +17,9 @@ export default function ForgottenPickAlert({
   onPickNow,
   onSkip,
 }: ForgottenPickAlertProps) {
-  const formattedDate = new Date(date).toLocaleDateString("en-US", {
+  const t = useTranslations("ForgottenAlert");
+  const locale = useLocale();
+  const formattedDate = new Date(date).toLocaleDateString(locale, {
     weekday: "long",
     month: "short",
     day: "numeric",
@@ -30,10 +33,9 @@ export default function ForgottenPickAlert({
             <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm mb-1">No pick recorded</h3>
+            <h3 className="font-semibold text-sm mb-1">{t("title")}</h3>
             <p className="text-xs text-muted-foreground">
-              You haven&apos;t made a pick for {formattedDate}. Pick a player
-              below or skip this date.
+              {t("message", { date: formattedDate })}
             </p>
           </div>
         </div>
@@ -41,7 +43,7 @@ export default function ForgottenPickAlert({
         <div className="flex gap-2 w-full sm:w-auto">
           <Button size="sm" onClick={onPickNow} className="flex-1 sm:flex-none">
             <UserCheck className="h-4 w-4 mr-1.5" />
-            Pick Now
+            {t("pickNow")}
           </Button>
           <Button
             size="sm"
@@ -49,7 +51,7 @@ export default function ForgottenPickAlert({
             onClick={onSkip}
             className="flex-1 sm:flex-none"
           >
-            Mark as Skipped
+            {t("markSkipped")}
           </Button>
         </div>
       </CardContent>

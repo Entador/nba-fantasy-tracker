@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import {
   Area,
   AreaChart,
@@ -75,6 +76,7 @@ function CustomTooltip({
   payload?: Array<{ payload: { score: number; picked: boolean } }>;
   label?: string;
 }) {
+  const t = useTranslations("ScoreChart");
   if (!active || !payload?.length) return null;
 
   const data = payload[0].payload;
@@ -93,12 +95,12 @@ function CustomTooltip({
             : "text-foreground"
         }`}
       >
-        {data.score} pts
+        {t("pts", { score: data.score })}
       </p>
       {data.picked && (
         <div className="flex items-center gap-1 mt-1.5 pt-1.5 border-t border-border">
           <div className="w-2 h-2 rounded-full bg-primary" />
-          <span className="text-xs text-primary font-medium">Picked</span>
+          <span className="text-xs text-primary font-medium">{t("picked")}</span>
         </div>
       )}
     </div>
@@ -106,8 +108,9 @@ function CustomTooltip({
 }
 
 export function ScoreChart({ games, avgScore }: ScoreChartProps) {
+  const locale = useLocale();
   const chartData = [...games].reverse().map((game) => ({
-    date: new Date(game.game_date).toLocaleDateString("en-US", {
+    date: new Date(game.game_date).toLocaleDateString(locale, {
       month: "short",
       day: "numeric",
     }),

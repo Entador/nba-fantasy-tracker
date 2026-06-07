@@ -31,12 +31,15 @@ import {
   Trophy,
 } from "lucide-react";
 import Image from "next/image";
+import { useLocale, useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const LOGO_SIZE = 40;
 
 export default function PlayerDetailPage() {
+  const t = useTranslations("PlayerDetail");
+  const locale = useLocale();
   const params = useParams();
   const router = useRouter();
   const playerId = parseInt(params.id as string);
@@ -59,9 +62,7 @@ export default function PlayerDetailPage() {
       const stats = await getPlayerStats(playerId);
       setData(stats);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load player stats"
-      );
+      setError(err instanceof Error ? err.message : t("errorTitle"));
     } finally {
       setLoading(false);
     }
@@ -75,10 +76,10 @@ export default function PlayerDetailPage() {
           <Loader2 className="h-20 w-20 animate-spin text-primary" />
         </div>
         <p className="text-lg font-semibold mt-8 text-foreground">
-          Loading player stats
+          {t("loading")}
         </p>
         <p className="text-sm text-muted-foreground mt-2 animate-pulse-subtle">
-          Gathering performance data...
+          {t("loadingSub")}
         </p>
       </div>
     );
@@ -91,13 +92,13 @@ export default function PlayerDetailPage() {
           <div className="p-4 rounded-full bg-destructive/10 mb-6">
             <AlertCircle className="h-16 w-16 text-destructive" />
           </div>
-          <h3 className="text-2xl font-bold mb-2">Error loading player</h3>
+          <h3 className="text-2xl font-bold mb-2">{t("errorTitle")}</h3>
           <p className="text-muted-foreground mb-6 text-center max-w-md">
-            {error || "Player not found"}
+            {error || t("notFound")}
           </p>
           <Button size="lg" className="shadow-md" onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to dashboard
+            {t("backToDashboard")}
           </Button>
         </CardContent>
       </Card>
@@ -119,6 +120,12 @@ export default function PlayerDetailPage() {
       : "0.0";
 
   const { best_score, worst_score, std_dev, consistency } = data;
+  const consistencyLabel =
+    consistency === "High"
+      ? t("valueHigh")
+      : consistency === "Medium"
+        ? t("valueMedium")
+        : t("valueLow");
 
   return (
     <div className="space-y-4">
@@ -130,7 +137,7 @@ export default function PlayerDetailPage() {
           onClick={() => router.back()}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to dashboard
+          {t("backToDashboard")}
         </Button>
         <div className="flex items-center gap-3 sm:gap-4">
           <Image
@@ -173,7 +180,7 @@ export default function PlayerDetailPage() {
               <div className="p-1 sm:p-1.5 rounded-lg bg-primary/10">
                 <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
               </div>
-              Average Fantasy
+              {t("avgFantasy")}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-3 sm:pb-4 px-3 sm:px-6">
@@ -181,7 +188,7 @@ export default function PlayerDetailPage() {
               {data.avg_fantasy.toFixed(1)}
             </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 font-medium">
-              Last {playedGames.length} games played
+              {t("lastGamesPlayed", { count: playedGames.length })}
             </p>
           </CardContent>
         </Card>
@@ -192,7 +199,7 @@ export default function PlayerDetailPage() {
               <div className="p-1 sm:p-1.5 rounded-lg bg-green-500/10">
                 <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600" />
               </div>
-              Times Picked
+              {t("timesPicked")}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-3 sm:pb-4 px-3 sm:px-6">
@@ -201,8 +208,8 @@ export default function PlayerDetailPage() {
             </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 font-medium">
               {pickedGames.length > 0
-                ? `Avg: ${avgPicked} pts`
-                : "Not picked yet"}
+                ? t("avgPts", { avg: avgPicked })
+                : t("notPicked")}
             </p>
           </CardContent>
         </Card>
@@ -213,13 +220,13 @@ export default function PlayerDetailPage() {
               <div className="p-1 sm:p-1.5 rounded-lg bg-amber-500/10">
                 <Trophy className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600" />
               </div>
-              Best Performance
+              {t("bestPerformance")}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-3 sm:pb-4 px-3 sm:px-6">
             <div className="text-2xl sm:text-3xl font-black">{best_score}</div>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 font-medium">
-              Worst: {worst_score} pts
+              {t("worst", { score: worst_score })}
             </p>
           </CardContent>
         </Card>
@@ -230,15 +237,15 @@ export default function PlayerDetailPage() {
               <div className="p-1 sm:p-1.5 rounded-lg bg-blue-500/10">
                 <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600" />
               </div>
-              Consistency
+              {t("consistency")}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-3 sm:pb-4 px-3 sm:px-6">
             <div className="text-2xl sm:text-3xl font-black bg-linear-to-br from-blue-600 to-blue-500 bg-clip-text text-transparent">
-              {consistency}
+              {consistencyLabel}
             </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 font-medium">
-              Std Dev: {std_dev.toFixed(1)}
+              {t("stdDev", { value: std_dev.toFixed(1) })}
             </p>
           </CardContent>
         </Card>
@@ -249,20 +256,22 @@ export default function PlayerDetailPage() {
         {/* Left: Recent Games Table */}
         <Card className="lg:max-h-[600px] flex flex-col">
           <CardHeader className="pb-3 shrink-0">
-            <CardTitle className="text-lg">Recent Games</CardTitle>
+            <CardTitle className="text-lg">{t("recentGames")}</CardTitle>
             <CardDescription className="text-sm">
-              Last {data.recent_games.length} games ({playedGames.length}{" "}
-              played)
+              {t("recentGamesDesc", {
+                total: data.recent_games.length,
+                played: playedGames.length,
+              })}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-4 overflow-y-scroll">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="h-8 py-1">Date</TableHead>
-                  <TableHead className="h-8 py-1">Matchup</TableHead>
+                  <TableHead className="h-8 py-1">{t("date")}</TableHead>
+                  <TableHead className="h-8 py-1">{t("matchup")}</TableHead>
                   <TableHead className="text-right h-8 py-1">
-                    Fantasy Score
+                    {t("fantasyScore")}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -273,7 +282,7 @@ export default function PlayerDetailPage() {
                     className={pickedDates.has(game.game_date) ? "bg-muted/50" : ""}
                   >
                     <TableCell className="font-medium py-1.5 whitespace-nowrap">
-                      {new Date(game.game_date).toLocaleDateString("en-US", {
+                      {new Date(game.game_date).toLocaleDateString(locale, {
                         month: "short",
                         day: "numeric",
                       })}
@@ -298,9 +307,9 @@ export default function PlayerDetailPage() {
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Score Trend</CardTitle>
+              <CardTitle className="text-lg">{t("scoreTrend")}</CardTitle>
               <CardDescription className="text-sm">
-                Average: {data.avg_fantasy.toFixed(1)} pts
+                {t("average", { value: data.avg_fantasy.toFixed(1) })}
               </CardDescription>
             </CardHeader>
             <CardContent className="pb-4">
@@ -310,7 +319,7 @@ export default function PlayerDetailPage() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Performance Insights</CardTitle>
+              <CardTitle className="text-lg">{t("insights")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2.5 pb-4">
               <div className="flex items-start gap-2.5">
@@ -318,13 +327,13 @@ export default function PlayerDetailPage() {
                   <TrendingUp className="h-3.5 w-3.5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">Average Performance</p>
+                  <p className="font-medium text-sm">{t("avgPerformance")}</p>
                   <p className="text-sm text-muted-foreground">
                     {data.avg_fantasy >= 45
-                      ? "Elite player with consistently high scores"
+                      ? t("avgPerfElite")
                       : data.avg_fantasy >= 35
-                        ? "Solid performer with good scoring potential"
-                        : "Developing player with room for improvement"}
+                        ? t("avgPerfSolid")
+                        : t("avgPerfDeveloping")}
                   </p>
                 </div>
               </div>
@@ -334,11 +343,12 @@ export default function PlayerDetailPage() {
                     <Target className="h-3.5 w-3.5 text-green-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">Pick History</p>
+                    <p className="font-medium text-sm">{t("pickHistory")}</p>
                     <p className="text-sm text-muted-foreground">
-                      Picked {pickedGames.length} time
-                      {pickedGames.length !== 1 ? "s" : ""} with an average of{" "}
-                      {avgPicked} points
+                      {t("pickHistoryText", {
+                        count: pickedGames.length,
+                        avg: avgPicked,
+                      })}
                     </p>
                   </div>
                 </div>
@@ -348,13 +358,13 @@ export default function PlayerDetailPage() {
                   <Trophy className="h-3.5 w-3.5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">Consistency Rating</p>
+                  <p className="font-medium text-sm">{t("consistencyRating")}</p>
                   <p className="text-sm text-muted-foreground">
                     {consistency === "High"
-                      ? "Very reliable with minimal variance in performance"
+                      ? t("consistencyHigh")
                       : consistency === "Medium"
-                        ? "Moderate consistency with occasional fluctuations"
-                        : "High variance - performance can be unpredictable"}
+                        ? t("consistencyMedium")
+                        : t("consistencyLow")}
                   </p>
                 </div>
               </div>

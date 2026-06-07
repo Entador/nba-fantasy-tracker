@@ -9,6 +9,7 @@ import {
 import { FilterOption } from "@/lib/core/domain/players";
 import { GameFilterOption } from "@/lib/core/domain/snapshot";
 import { Check, Trophy } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 export type { FilterOption, GameFilterOption as Game };
@@ -36,6 +37,7 @@ export default function PlayerFilters({
   selectedGame,
   onGameChange,
 }: PlayerFiltersProps) {
+  const t = useTranslations("Filters");
   const filterBadgeClass =
     "cursor-pointer shrink-0 px-2 sm:px-3 py-2 text-[11px] sm:text-xs leading-none";
   const [open, setOpen] = useState(false);
@@ -57,13 +59,13 @@ export default function PlayerFilters({
               <Trophy className="h-3 w-3" />
               <span className="text-[11px] sm:text-xs leading-none">
                 {gamesCount === null ? (
-                  "— games"
+                  t("gamesPlaceholder")
                 ) : selectedGameData ? (
                   <span className="font-mono leading-none">
                     {selectedGameData.awayTeam} @ {selectedGameData.homeTeam}
                   </span>
                 ) : (
-                  `${gamesCount} ${gamesCount === 1 ? "game" : "games"}`
+                  t("games", { count: gamesCount ?? 0 })
                 )}
               </span>
             </button>
@@ -84,7 +86,7 @@ export default function PlayerFilters({
                       : "hover:bg-accent"
                   }`}
                 >
-                  <span>All games</span>
+                  <span>{t("allGames")}</span>
                 </button>
 
                 {/* Games list */}
@@ -120,21 +122,21 @@ export default function PlayerFilters({
           className={filterBadgeClass}
           onClick={() => onFilterChange("available")}
         >
-          Available: {availableCount ?? "—"}
+          {t("available", { count: availableCount ?? "—" })}
         </Badge>
         <Badge
           variant={filterBy === "all" ? "default" : "outline"}
           className={filterBadgeClass}
           onClick={() => onFilterChange("all")}
         >
-          All: {totalCount ?? "—"}
+          {t("all", { count: totalCount ?? "—" })}
         </Badge>
         <Badge
           variant={filterBy === "locked" ? "default" : "outline"}
           className={filterBadgeClass}
           onClick={() => onFilterChange("locked")}
         >
-          Locked: {lockedCount ?? "—"}
+          {t("locked", { count: lockedCount ?? "—" })}
         </Badge>
       </div>
 

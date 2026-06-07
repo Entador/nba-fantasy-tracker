@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { redirect } from "next/navigation";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import PlayersView from "@/components/PlayersView";
+import { redirect } from "@/i18n/navigation";
 import { getTodayET } from "@/lib/core/utils/date";
 
 interface PageProps {
+  params: Promise<{ locale: string }>;
   searchParams: Promise<{ date?: string }>;
 }
 
@@ -39,16 +41,14 @@ function validateDate(dateParam: string | undefined, todayET: string): string | 
   return dateParam;
 }
 
-function LoadingFallback() {
+function LoadingFallback({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 animate-fade-in">
       <div className="relative">
         <div className="w-20 h-20 rounded-full border-4 border-muted absolute"></div>
         <Loader2 className="h-20 w-20 animate-spin text-primary" />
       </div>
-      <p className="text-lg font-semibold mt-8 text-foreground">
-        Loading players
-      </p>
+      <p className="text-lg font-semibold mt-8 text-foreground">{label}</p>
     </div>
   );
 }
@@ -57,19 +57,24 @@ function LoadingFallback() {
  * Home page - Server Component.
  * Validates date parameter, then hands off to client component which fetches snapshot.
  */
-export default async function HomePage({ searchParams }: PageProps) {
-  const params = await searchParams;
+export default async function HomePage({ params, searchParams }: PageProps) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const sp = await searchParams;
   const todayET = getTodayET();
-  const validDate = validateDate(params.date, todayET);
+  const validDate = validateDate(sp.date, todayET);
 
   // Redirect to home if date is invalid
   if (validDate === null) {
-    redirect("/");
+    redirect({ href: "/", locale });
   }
+
+  const t = await getTranslations("Dashboard");
 
   // Client component fetches snapshot and filters by date
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<LoadingFallback label={t("loadingPlayers")} />}>
       <PlayersView initialDate={todayET} />
     </Suspense>
   );

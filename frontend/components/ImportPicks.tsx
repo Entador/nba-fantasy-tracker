@@ -11,6 +11,7 @@ import {
 import { usePicks } from "@/lib/core/hooks/usePicks";
 import { parseAndMatchTTFLData } from "@/lib/core/domain/import";
 import { AlertCircle, CheckCircle2, Upload, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 interface ImportPicksProps {
@@ -22,6 +23,7 @@ export default function ImportPicks({
   onImportComplete,
   onClose,
 }: ImportPicksProps) {
+  const t = useTranslations("Import");
   const { importMany } = usePicks();
   const [tsvData, setTsvData] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,6 +35,13 @@ export default function ImportPicks({
     error?: string;
   } | null>(null);
 
+  const errorMessage = (code: "no_data" | "no_match" | "unknown") =>
+    code === "no_data"
+      ? t("errorNoData")
+      : code === "no_match"
+        ? t("errorNoMatch")
+        : t("errorUnknown");
+
   const handleImport = async () => {
     if (!tsvData.trim()) {
       setResult({
@@ -40,7 +49,7 @@ export default function ImportPicks({
         imported: 0,
         skipped: 0,
         unmatched: [],
-        error: "Please paste your TTFL data first",
+        error: t("errorEmpty"),
       });
       return;
     }
@@ -58,7 +67,7 @@ export default function ImportPicks({
           imported: 0,
           skipped: 0,
           unmatched,
-          error,
+          error: errorMessage(error),
         });
         return;
       }
@@ -86,7 +95,7 @@ export default function ImportPicks({
         imported: 0,
         skipped: 0,
         unmatched: [],
-        error: err instanceof Error ? err.message : "Unknown error occurred",
+        error: t("errorUnknown"),
       });
     } finally {
       setLoading(false);
@@ -100,11 +109,10 @@ export default function ImportPicks({
           <div>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Import Historical Picks
+              {t("title")}
             </CardTitle>
             <CardDescription className="mt-2">
-              Paste your TTFL history data from the website (tab-separated
-              format)
+              {t("description")}
             </CardDescription>
           </div>
           <Button
@@ -119,33 +127,30 @@ export default function ImportPicks({
         <CardContent className="space-y-4">
           {/* Instructions */}
           <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
-            <p className="font-medium">How to import:</p>
+            <p className="font-medium">{t("howTo")}</p>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
               <li>
-                Go to your{" "}
+                {t("step1Before")}
                 <a
                   href="https://fantasy.trashtalk.co/?tpl=historique"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >
-                  TTFL history page
-                </a>{" "}
-                and copy your pick history table
+                  {t("step1Link")}
+                </a>
+                {t("step1After")}
               </li>
-              <li>Paste the data in the text area below</li>
-              <li>Click "Import Picks" to add them to your local history</li>
+              <li>{t("step2")}</li>
+              <li>{t("step3")}</li>
             </ol>
-            <p className="text-xs text-muted-foreground mt-2">
-              Note: Importing is authoritative — it overwrites any existing pick
-              on the same date with your TTFL history.
-            </p>
+            <p className="text-xs text-muted-foreground mt-2">{t("note")}</p>
           </div>
 
           {/* Textarea */}
           <div>
             <label className="text-sm font-medium mb-2 block">
-              Paste TTFL data here
+              {t("pasteLabel")}
             </label>
             <textarea
               value={tsvData}
@@ -175,23 +180,21 @@ export default function ImportPicks({
                 )}
                 <div className="space-y-1 flex-1">
                   <p className="font-medium">
-                    {result.success ? "Import Successful!" : "Import Failed"}
+                    {result.success ? t("success") : t("failed")}
                   </p>
                   {result.success ? (
                     <>
                       <p className="text-sm text-muted-foreground">
-                        Imported {result.imported} pick
-                        {result.imported !== 1 ? "s" : ""}
-                        {result.skipped > 0 && (
-                          <> ({result.skipped} skipped — player not found)</>
-                        )}
+                        {t("imported", { count: result.imported })}
+                        {result.skipped > 0 &&
+                          t("skipped", { count: result.skipped })}
                       </p>
                       {result.unmatched.length > 0 && (
                         <div className="mt-2">
                           <p className="text-sm font-medium text-amber-600">
-                            Warning: {result.unmatched.length} player
-                            {result.unmatched.length !== 1 ? "s" : ""} could not
-                            be matched:
+                            {t("unmatchedWarning", {
+                              count: result.unmatched.length,
+                            })}
                           </p>
                           <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
                             {result.unmatched.slice(0, 5).map((name, i) => (
@@ -199,7 +202,10 @@ export default function ImportPicks({
                             ))}
                             {result.unmatched.length > 5 && (
                               <li>
-                                • ... and {result.unmatched.length - 5} more
+                                •{" "}
+                                {t("andMore", {
+                                  count: result.unmatched.length - 5,
+                                })}
                               </li>
                             )}
                           </ul>
@@ -219,7 +225,7 @@ export default function ImportPicks({
           {/* Actions */}
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="outline" onClick={onClose} disabled={loading}>
-              {result?.success ? "Close" : "Cancel"}
+              {result?.success ? t("close") : t("cancel")}
             </Button>
             <Button
               onClick={handleImport}
@@ -228,12 +234,12 @@ export default function ImportPicks({
               {loading ? (
                 <>
                   <span className="animate-spin mr-2">⏳</span>
-                  Importing...
+                  {t("importing")}
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Import Picks
+                  {t("importPicks")}
                 </>
               )}
             </Button>

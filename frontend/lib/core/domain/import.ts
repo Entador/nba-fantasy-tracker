@@ -65,47 +65,33 @@ function matchPlayerNames(
   return { matches, unmatched };
 }
 
-export interface ImportResult {
-  success: boolean;
-  imported: number;
-  skipped: number;
-  unmatched: string[];
-  error?: string;
-}
+/**
+ * Stable, locale-agnostic error codes. The UI maps these to translated copy
+ * (see `ImportPicks`), so this core module stays free of display strings.
+ */
+export type ImportErrorCode = 'no_data' | 'no_match' | 'unknown';
 
 /** Validate, parse, and match TTFL TSV data to player IDs. */
 export async function parseAndMatchTTFLData(tsvData: string): Promise<{
   picks: Pick[];
   unmatched: string[];
-  error?: string;
+  error?: ImportErrorCode;
 }> {
   try {
     const parsedData = parseTTFLData(tsvData);
     if (parsedData.length === 0) {
-      return {
-        picks: [],
-        unmatched: [],
-        error: 'No valid data found. Please paste tab-separated data from the TTFL website.',
-      };
+      return { picks: [], unmatched: [], error: 'no_data' };
     }
 
     const allPlayers = await getAllPlayers();
     const { matches, unmatched } = matchPlayerNames(parsedData, allPlayers);
 
     if (matches.length === 0) {
-      return {
-        picks: [],
-        unmatched,
-        error: 'No players could be matched. Please check the data format.',
-      };
+      return { picks: [], unmatched, error: 'no_match' };
     }
 
     return { picks: matches, unmatched };
-  } catch (error) {
-    return {
-      picks: [],
-      unmatched: [],
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
+  } catch {
+    return { picks: [], unmatched: [], error: 'unknown' };
   }
 }

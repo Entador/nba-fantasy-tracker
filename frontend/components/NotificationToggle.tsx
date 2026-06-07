@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, BellOff, BellRing, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { enablePush, getPushPermission, isPushSupported } from "@/lib/web/push";
@@ -11,6 +12,7 @@ const rowClass =
   "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors";
 
 export default function NotificationToggle() {
+  const t = useTranslations("Notifications");
   const [permission, setPermission] = useState<Permission>("unsupported");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function NotificationToggle() {
     try {
       setPermission(await enablePush());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't enable notifications.");
+      setError(e instanceof Error ? e.message : t("enableError"));
     } finally {
       setBusy(false);
     }
@@ -38,7 +40,7 @@ export default function NotificationToggle() {
     return (
       <div className={`${rowClass} text-muted-foreground`}>
         <BellRing className="h-4 w-4 text-primary" />
-        Notifications on
+        {t("on")}
       </div>
     );
   }
@@ -47,7 +49,7 @@ export default function NotificationToggle() {
     return (
       <div className={`${rowClass} text-muted-foreground`}>
         <BellOff className="h-4 w-4" />
-        <span>Blocked — enable in browser settings</span>
+        <span>{t("blocked")}</span>
       </div>
     );
   }
@@ -65,7 +67,7 @@ export default function NotificationToggle() {
         ) : (
           <Bell className="h-4 w-4" />
         )}
-        Enable notifications
+        {t("enable")}
       </button>
       {error && <p className="px-3 pb-1 text-xs text-destructive">{error}</p>}
     </div>

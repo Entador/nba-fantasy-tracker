@@ -162,29 +162,55 @@ back a top-level `routers/` or `services/` layer.
 ```
 frontend/
 ├── app/
-│   ├── layout.tsx          # Root layout with metadata
-│   ├── page.tsx            # Main page: dashboard with date navigation
-│   ├── history/
-│   │   └── page.tsx        # Pick history
-│   └── players/[id]/
-│       └── page.tsx        # Player detail page
+│   ├── globals.css         # Global styles (stays at app/ root, imported by the layout)
+│   └── [locale]/           # All routes live under the locale segment (i18n)
+│       ├── layout.tsx      # Root layout: <html lang>, NextIntlClientProvider, nav, metadata
+│       ├── page.tsx        # Main page: dashboard with date navigation
+│       ├── history/
+│       │   └── page.tsx    # Pick history
+│       ├── login/
+│       │   └── page.tsx    # Email/password auth
+│       └── players/
+│           ├── page.tsx    # Rankings
+│           └── [id]/
+│               └── page.tsx  # Player detail page
+├── i18n/                   # next-intl config
+│   ├── routing.ts          # locales ['fr','en'], defaultLocale 'fr', localePrefix 'as-needed'
+│   ├── navigation.ts       # locale-aware Link/redirect/usePathname/useRouter (use these for nav)
+│   └── request.ts          # getRequestConfig: validate locale + load messages JSON
+├── proxy.ts                # next-intl middleware (Next.js 16 renamed middleware.ts → proxy.ts)
+├── messages/
+│   ├── fr.json             # French catalog (primary; native TTFL jargon)
+│   └── en.json             # English catalog (mirrors copy; keeps "Fantasy" branding)
 ├── components/
 │   ├── PlayersView.tsx     # Client component: snapshot fetching, filtering, sorting
 │   ├── PlayersTable.tsx    # Table display with clickable sortable headers
 │   ├── PlayerFilters.tsx   # Filter controls (game, availability)
+│   ├── LocaleSwitcher.tsx  # FR/EN toggle in the nav
 │   └── ...                 # Other components
-└── lib/
-    ├── api.ts              # API client functions (fetch with credentials: 'include')
-    ├── hooks/
-    │   ├── useSnapshot.ts  # SWR hook for the season snapshot
-    │   └── usePicks.ts     # SWR hook for picks (server-backed, optimistic mutations)
-    ├── snapshot.ts         # Client-side snapshot filtering utilities
-    ├── picks.ts            # Pure pick logic: map server locks → eligibility + forgotten-date detection
-    ├── players.ts          # Sort/filter logic, SortOption type, parseSort
-    └── statColumns.ts      # STAT_COLUMNS config (single source of truth for stat columns)
+└── lib/core/               # Portable (RN-ready) logic: api/, hooks/, domain/, utils/
+    └── web/                # Web-only helpers (cn, push, statColumnView)
 ```
 
-**Routing**: Uses Next.js App Router (file-based routing)
+**Routing**: Next.js App Router (file-based). All pages live under `app/[locale]/`.
+
+### Internationalization (next-intl)
+
+- **Locales**: `fr` (default, primary audience) and `en`. `localePrefix: 'as-needed'`,
+  so French URLs have no prefix (`/`, `/history`) and English is prefixed (`/en`, `/en/history`).
+- **Where strings live**: `messages/{fr,en}.json`, organized by namespace (one per area:
+  `Nav`, `Dashboard`, `Filters`, `History`, `Import`, `Login`, `PlayerDetail`, `Rankings`, …).
+  Plurals/interpolation use ICU syntax (`{count, plural, one {…} other {…}}`).
+- **Reading strings**: `useTranslations(ns)` in client components, `getTranslations({locale, namespace})`
+  in server components. Locale-aware dates via `useLocale()` + `toLocaleDateString(locale, …)`.
+- **Navigation**: import `Link`/`useRouter`/`redirect` from `@/i18n/navigation` (not `next/*`)
+  so the active locale prefix is preserved. `LocaleSwitcher` swaps locale on the current path.
+- **Adding a string**: add the key to both `fr.json` and `en.json`, then `t('Namespace.key')`.
+- **French copy conventions**: see the French TTFL terminology — native jargon
+  (**picker / pické / pick**), keep **Fantasy** for the score label (trademark), use **TTFL**
+  only in descriptive text. Core modules stay string-free: surface error *codes*
+  (e.g. `domain/import.ts` returns `'no_data' | 'no_match' | 'unknown'`) and translate at the
+  component call site.
 
 ### Data Flow
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { PlayerInfo } from "@/components/PlayerInfo";
@@ -24,13 +25,14 @@ import { cn } from "@/lib/web/cn";
 
 const LOGO_SIZE = 32;
 function RankTrend({ delta }: { delta: number | null }) {
+  const t = useTranslations("Common");
   if (delta === null || delta === 0)
     return <span className="text-xs text-muted-foreground/40">—</span>;
 
   const rising = delta > 0;
   return (
     <span
-      title={`${rising ? "+" : ""}${delta} rank vs last week`}
+      title={t("rankVsLastWeek", { sign: rising ? "+" : "", delta })}
       className={`inline-flex items-center gap-0.5 text-xs font-medium tabular-nums ${rising ? "text-green-500" : "text-red-500"}`}
     >
       {rising ? "▲" : "▼"}
@@ -65,6 +67,7 @@ function InjuryBadge({
   returnDate: string | null;
   details: string | null;
 }) {
+  const t = useTranslations("PlayersTable");
   const [open, setOpen] = useState(false);
 
   if (!status || status.toLowerCase() === "available") return null;
@@ -120,13 +123,13 @@ function InjuryBadge({
         {returnDate && (
           <div className="mb-2 last:mb-0">
             <p className="font-semibold text-sm leading-relaxed">
-              Expected return: {returnDate}
+              {t("expectedReturn", { date: returnDate })}
             </p>
           </div>
         )}
         {details && (
           <div className="text-xs text-muted-foreground leading-relaxed wrap-break-word">
-            Details: {formatInjuryDetails(details)}
+            {t("details")} {formatInjuryDetails(details)}
           </div>
         )}
       </PopoverContent>
@@ -238,6 +241,7 @@ export default function PlayersTable({
   sortBy,
   onSortChange,
 }: PlayersTableProps) {
+  const t = useTranslations("PlayersTable");
   const activeField = parseSort(sortBy).field;
   const playoffCtx = { currentPlayoffRound, lastPlayoffRound };
   const visibleStats = STAT_COLUMNS.filter(
@@ -294,20 +298,20 @@ export default function PlayersTable({
                 className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-red-500 border-l-[3px] border-red-400/50"
                 colSpan={3}
               >
-                Opponent
+                {t("opponent")}
               </th>
               <th
                 className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-primary border-l-[3px] border-primary/50"
                 colSpan={4}
               >
-                Fantasy
+                {t("fantasy")}
               </th>
               {isPlayoffPeriod && (
                 <th
                   className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-amber-500 border-l-[3px] border-amber-400/50"
                   colSpan={3}
                 >
-                  Playoffs
+                  {t("playoffs")}
                 </th>
               )}
               <th></th>
@@ -318,7 +322,7 @@ export default function PlayersTable({
               <th className="w-10 px-1 py-2"></th>
               <SortHeader
                 field="name"
-                label="Player"
+                label={t("player")}
                 align="left"
                 sortBy={sortBy}
                 onSortChange={onSortChange}
@@ -327,7 +331,7 @@ export default function PlayersTable({
               />
               <SortHeader
                 field="matchup"
-                label="Matchup"
+                label={t("matchup")}
                 align="left"
                 sortBy={sortBy}
                 onSortChange={onSortChange}
@@ -378,7 +382,7 @@ export default function PlayersTable({
                       />
                       {player.is_back_to_back && (
                         <span
-                          title="Back-to-back"
+                          title={t("backToBack")}
                           className="text-xs font-semibold text-muted-foreground/70 px-1.5 py-0.5 rounded border border-border bg-muted/50"
                         >
                           B2B
@@ -424,7 +428,7 @@ export default function PlayersTable({
                         className="h-6 px-2 text-xs"
                         onClick={() => onPickPlayer(player.player_id)}
                       >
-                        Pick
+                        {t("pick")}
                       </Button>
                     ) : (
                       <span className="inline-flex items-center justify-center h-6 text-xs text-muted-foreground tabular-nums">

@@ -1,9 +1,10 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,24 +19,8 @@ import { useAuth } from "@/lib/core/hooks/useAuth";
 
 type Mode = "login" | "register";
 
-const COPY = {
-  login: {
-    title: "Welcome back",
-    description: "Sign in to sync your picks across devices.",
-    submit: "Sign in",
-    switchPrompt: "New here?",
-    switchAction: "Create an account",
-  },
-  register: {
-    title: "Create your account",
-    description: "Keep your picks saved and synced everywhere.",
-    submit: "Create account",
-    switchPrompt: "Already have an account?",
-    switchAction: "Sign in",
-  },
-} as const;
-
 export default function LoginPage() {
+  const t = useTranslations("Login");
   const router = useRouter();
   const { login, register } = useAuth();
 
@@ -46,7 +31,13 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const copy = COPY[mode];
+  const copy = {
+    title: t(mode === "login" ? "loginTitle" : "registerTitle"),
+    description: t(mode === "login" ? "loginDescription" : "registerDescription"),
+    submit: t(mode === "login" ? "loginSubmit" : "registerSubmit"),
+    switchPrompt: t(mode === "login" ? "loginSwitchPrompt" : "registerSwitchPrompt"),
+    switchAction: t(mode === "login" ? "loginSwitchAction" : "registerSwitchAction"),
+  };
 
   function switchMode() {
     setMode((m) => (m === "login" ? "register" : "login"));
@@ -65,7 +56,7 @@ export default function LoginPage() {
       }
       router.push("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("genericError"));
     } finally {
       setSubmitting(false);
     }
@@ -81,7 +72,7 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -89,12 +80,12 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t("emailPlaceholder")}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -103,7 +94,7 @@ export default function LoginPage() {
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
+                placeholder={t("passwordPlaceholder")}
               />
             </div>
 
@@ -114,7 +105,7 @@ export default function LoginPage() {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="size-4 rounded border-input accent-primary"
               />
-              Keep me signed in on this device
+              {t("rememberMe")}
             </label>
 
             {error && (

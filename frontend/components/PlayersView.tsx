@@ -8,10 +8,11 @@ import {
   Calendar,
 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Link, useRouter } from "@/i18n/navigation";
 import DateNavigation from "@/components/DateNavigation";
 import ForgottenPickAlert from "@/components/ForgottenPickAlert";
 import PlayerFilters from "@/components/PlayerFilters";
@@ -42,6 +43,7 @@ import { useSnapshot } from "@/lib/core/hooks/useSnapshot";
 import { getTodayET } from "@/lib/core/utils/date";
 
 function TableSkeleton() {
+  const t = useTranslations("PlayersTable");
   return (
     <div className="border rounded-lg overflow-hidden">
       <table className="w-full text-sm">
@@ -54,13 +56,13 @@ function TableSkeleton() {
               className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-red-500 border-l-[3px] border-red-400/50"
               colSpan={3}
             >
-              Opponent
+              {t("opponent")}
             </th>
             <th
               className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-primary border-l-[3px] border-primary/50"
               colSpan={3}
             >
-              Fantasy
+              {t("fantasy")}
             </th>
             <th></th>
           </tr>
@@ -68,10 +70,10 @@ function TableSkeleton() {
           <tr className="border-b bg-muted/20">
             <th className="w-10 px-1 py-2"></th>
             <th className="whitespace-nowrap pr-2 py-2 text-left font-medium">
-              Player
+              {t("player")}
             </th>
             <th className="px-3 py-2 text-left font-medium border-l-[3px] border-red-400/50">
-              Matchup
+              {t("matchup")}
             </th>
             <th className="px-3 py-2 text-right font-medium">Pace</th>
             <th className="px-3 py-2 text-right font-medium">DRtg</th>
@@ -134,6 +136,7 @@ interface PlayersViewProps {
  * - Pick management (server-backed via usePicks)
  */
 export default function PlayersView({ initialDate }: PlayersViewProps) {
+  const t = useTranslations("Dashboard");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -335,7 +338,7 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
         <div className="flex flex-col sm:gap-1">
           <div className="flex items-center sm:gap-5 gap-3">
             <h1 className="text-2xl! sm:text-5xl! font-bold tracking-tight">
-              Pick Dashboard
+              {t("title")}
             </h1>
             {showLoadingGif && (
               <Image
@@ -351,7 +354,7 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Last injury statuses updated :
+            {t("injuryUpdated")}
             {loading ? (
               <span className="inline-flex ml-2 gap-0.5">
                 <span className="animate-bounce [animation-delay:0ms]">•</span>
@@ -377,13 +380,13 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
             <div className="flex items-center gap-2">
               <AlarmClock className="h-3.5 w-3.5 shrink-0" />
               <span>
-                <span className="hidden sm:inline">Picks lock at </span>
+                <span className="hidden sm:inline">{t("picksLockAt")}</span>
                 <span className="font-semibold text-foreground">
                   {loading ? "—" : (deadline ?? "—")}
                 </span>
               </span>
             </div>
-            <span className="text-[10px] sm:hidden">Pick deadline</span>
+            <span className="text-[10px] sm:hidden">{t("pickDeadline")}</span>
           </div>
         </div>
       </div>
@@ -401,11 +404,10 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 min-w-0">
                   <span className="text-sm font-semibold text-amber-900 dark:text-amber-100 truncate">
-                    {forgottenDates.length} forgotten pick
-                    {forgottenDates.length !== 1 ? "s" : ""}
+                    {t("forgottenPicks", { count: forgottenDates.length })}
                   </span>
                   <span className="text-xs text-amber-700 dark:text-amber-300 truncate">
-                    Click to view & skip
+                    {t("clickToViewSkip")}
                   </span>
                 </div>
               </div>
@@ -451,12 +453,12 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
               <Calendar className="h-16 w-16 text-muted-foreground" />
             </div>
             <h3 className="text-2xl font-bold mb-2 text-center">
-              No games scheduled
+              {t("noGamesTitle")}
             </h3>
             <p className="text-muted-foreground text-center max-w-md">
               {currentDate === initialDate
-                ? "Check back later for tonight's games"
-                : "No games scheduled for this date"}
+                ? t("noGamesTonight")
+                : t("noGamesDate")}
             </p>
           </CardContent>
         </Card>
@@ -469,7 +471,7 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
             <div className="p-4 rounded-full bg-destructive/10 mb-6">
               <AlertCircle className="h-16 w-16 text-destructive" />
             </div>
-            <h3 className="text-2xl font-bold mb-2">Error loading players</h3>
+            <h3 className="text-2xl font-bold mb-2">{t("errorTitle")}</h3>
             <p className="text-muted-foreground mb-6 text-center max-w-md">
               {error}
             </p>
@@ -478,7 +480,7 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
               size="lg"
               className="shadow-md"
             >
-              Reload Page
+              {t("reload")}
             </Button>
           </CardContent>
         </Card>
@@ -493,7 +495,7 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
             <>
               {filteredPlayers.length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground py-4">
-                  No players match filters
+                  {t("noMatch")}
                 </p>
               ) : (
                 <div className="-mx-2 sm:mx-0">

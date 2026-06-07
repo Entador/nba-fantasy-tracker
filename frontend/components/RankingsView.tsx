@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
 import { PlayerInfo } from "@/components/PlayerInfo";
@@ -13,13 +14,14 @@ const LOGO_SIZE = 28;
 type SortKey = "rank" | "avg_fantasy_l10" | "avg_fantasy_l30d" | "name";
 
 function RankTrend({ delta }: { delta: number | null }) {
+  const t = useTranslations("Common");
   if (delta === null || delta === 0)
     return <span className="text-xs text-muted-foreground/40">—</span>;
 
   const rising = delta > 0;
   return (
     <span
-      title={`${rising ? "+" : ""}${delta} rank vs last week`}
+      title={t("rankVsLastWeek", { sign: rising ? "+" : "", delta })}
       className={`inline-flex items-center gap-0.5 text-xs font-medium tabular-nums ${rising ? "text-green-500" : "text-red-500"}`}
     >
       {rising ? "▲" : "▼"}
@@ -29,6 +31,7 @@ function RankTrend({ delta }: { delta: number | null }) {
 }
 
 export default function RankingsView() {
+  const t = useTranslations("Rankings");
   const { data: snapshot, isLoading } = useSnapshot();
   const { picks, locks } = usePicks();
   const [search, setSearch] = useState("");
@@ -104,10 +107,10 @@ export default function RankingsView() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-5xl font-bold tracking-tight">
-            Rankings
+            {t("title")}
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            {filtered.length} players · season averages
+            {t("subtitle", { count: filtered.length })}
           </p>
         </div>
 
@@ -117,7 +120,7 @@ export default function RankingsView() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search player or team…"
+              placeholder={t("searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 pr-3 py-1.5 text-sm rounded-md border bg-background focus:outline-none focus:ring-1 focus:ring-primary w-52"
@@ -128,10 +131,10 @@ export default function RankingsView() {
             onChange={(e) => setSortBy(e.target.value as SortKey)}
             className="text-sm rounded-md border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="rank">Season avg</option>
-            <option value="avg_fantasy_l10">Last 10</option>
-            <option value="avg_fantasy_l30d">Last 30d</option>
-            <option value="name">Name</option>
+            <option value="rank">{t("seasonAvg")}</option>
+            <option value="avg_fantasy_l10">{t("last10")}</option>
+            <option value="avg_fantasy_l30d">{t("last30d")}</option>
+            <option value="name">{t("name")}</option>
           </select>
         </div>
       </div>
@@ -147,7 +150,7 @@ export default function RankingsView() {
                 className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-primary border-l-[3px] border-primary/50"
                 colSpan={4}
               >
-                Fantasy
+                {t("fantasy")}
               </th>
               <th></th>
             </tr>
@@ -155,14 +158,14 @@ export default function RankingsView() {
               <th className="w-10 px-3 py-2 text-right font-medium text-muted-foreground">
                 #
               </th>
-              <th className="px-3 py-2 text-left font-medium">Player</th>
+              <th className="px-3 py-2 text-left font-medium">{t("player")}</th>
               <th className="px-3 py-2 text-right font-medium border-l-[3px] border-primary/50">
-                Season
+                {t("season")}
               </th>
               <th className="px-3 py-2 text-right font-medium">-14d</th>
               <th className="px-3 py-2 text-right font-medium">L10</th>
               <th className="px-3 py-2 text-right font-medium">30d</th>
-              <th className="w-14 px-3 py-2 text-center font-medium">Trend</th>
+              <th className="w-14 px-3 py-2 text-center font-medium">{t("trend")}</th>
             </tr>
           </thead>
           <tbody className="divide-y">

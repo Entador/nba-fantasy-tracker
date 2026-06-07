@@ -31,9 +31,11 @@ import {
   UserCheck,
   X,
 } from "lucide-react";
-import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
+
+import { Link } from "@/i18n/navigation";
 
 interface PickWithPlayer extends Pick {
   playerName: string;
@@ -41,6 +43,8 @@ interface PickWithPlayer extends Pick {
 }
 
 export default function HistoryPage() {
+  const t = useTranslations("History");
+  const locale = useLocale();
   const { picks, skip } = usePicks();
   const { data: snapshot } = useSnapshot();
 
@@ -62,7 +66,7 @@ export default function HistoryPage() {
 
   // Gate on player names; picks arrive quickly via SWR
   const loading = !playerList && !playersError;
-  const error = playersError ? "Failed to load history" : null;
+  const error = playersError ? t("failedLoad") : null;
 
   // Match picks with player info (skips have player_id -1 and drop out here)
   const history: PickWithPlayer[] = useMemo(() => {
@@ -95,7 +99,7 @@ export default function HistoryPage() {
           <Loader2 className="h-20 w-20 animate-spin text-primary" />
         </div>
         <p className="text-lg font-semibold mt-8 text-foreground">
-          Loading pick history
+          {t("loading")}
         </p>
       </div>
     );
@@ -108,12 +112,12 @@ export default function HistoryPage() {
           <div className="p-4 rounded-full bg-destructive/10 mb-6">
             <AlertCircle className="h-16 w-16 text-destructive" />
           </div>
-          <h3 className="text-2xl font-bold mb-2">Error loading history</h3>
+          <h3 className="text-2xl font-bold mb-2">{t("errorTitle")}</h3>
           <p className="text-muted-foreground mb-6 text-center max-w-md">
             {error}
           </p>
           <Button onClick={() => reloadPlayers()} size="lg" className="shadow-md">
-            Try Again
+            {t("tryAgain")}
           </Button>
         </CardContent>
       </Card>
@@ -130,16 +134,15 @@ export default function HistoryPage() {
                 <Calendar className="h-14 w-14 text-primary" />
               </div>
 
-              <h3 className="mb-2 text-2xl font-semibold">No picks yet</h3>
+              <h3 className="mb-2 text-2xl font-semibold">{t("emptyTitle")}</h3>
 
               <p className="mb-8 max-w-md text-muted-foreground">
-                Start by picking a player from tonight&apos;s games or import
-                your existing history to see past picks.
+                {t("emptyMessage")}
               </p>
 
               <div className="flex w-full flex-col gap-4 sm:flex-row sm:justify-center">
                 <Button asChild size="lg" className="sm:min-w-55 shadow-md">
-                  <Link href="/">View Tonight&apos;s Players</Link>
+                  <Link href="/">{t("viewPlayers")}</Link>
                 </Button>
 
                 <Button
@@ -149,20 +152,20 @@ export default function HistoryPage() {
                   onClick={() => setShowImport(true)}
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  Import History
+                  {t("importHistory")}
                 </Button>
               </div>
 
               <div className="mt-10 flex w-full items-center gap-4">
                 <div className="h-px flex-1 bg-border" />
                 <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                  Tip
+                  {t("tip")}
                 </span>
                 <div className="h-px flex-1 bg-border" />
               </div>
 
               <p className="mt-4 text-sm text-muted-foreground">
-                You can always import past picks later from your settings.
+                {t("tipText")}
               </p>
             </CardContent>
           </Card>
@@ -185,10 +188,10 @@ export default function HistoryPage() {
       <div className="animate-slide-up flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3 bg-linear-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
-            Pick History
+            {t("title")}
           </h1>
           <p className="text-lg text-muted-foreground">
-            Your player picks ({history.length} total)
+            {t("total", { count: history.length })}
           </p>
         </div>
         <Button
@@ -197,7 +200,7 @@ export default function HistoryPage() {
           className="shrink-0"
         >
           <Upload className="h-4 w-4 mr-2" />
-          Import History
+          {t("importHistory")}
         </Button>
       </div>
 
@@ -211,12 +214,10 @@ export default function HistoryPage() {
               </div>
               <div>
                 <CardTitle className="text-base sm:text-lg">
-                  Forgotten Picks
+                  {t("forgottenTitle")}
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  {forgottenDates.length} date
-                  {forgottenDates.length !== 1 ? "s" : ""} in the past month
-                  without a pick
+                  {t("forgottenCount", { count: forgottenDates.length })}
                 </CardDescription>
               </div>
             </div>
@@ -231,7 +232,7 @@ export default function HistoryPage() {
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="font-medium text-sm truncate">
-                      {new Date(date).toLocaleDateString("en-US", {
+                      {new Date(date).toLocaleDateString(locale, {
                         weekday: "short",
                         month: "short",
                         day: "numeric",
@@ -247,7 +248,7 @@ export default function HistoryPage() {
                     >
                       <Link href={`/?date=${date}`}>
                         <UserCheck className="h-2 w-2 shrink-0" />
-                        <span>Pick Player</span>
+                        <span>{t("pickPlayer")}</span>
                       </Link>
                     </Button>
                     <Button
@@ -257,7 +258,7 @@ export default function HistoryPage() {
                       className="flex-1 sm:flex-none text-xs min-w-0"
                     >
                       <X className="h-2 w-2 shrink-0" />
-                      <p className="">Mark as Skipped</p>
+                      <p className="">{t("markSkipped")}</p>
                     </Button>
                   </div>
                 </div>
@@ -270,25 +271,23 @@ export default function HistoryPage() {
       {/* History table */}
       <Card>
         <CardHeader>
-          <CardTitle>All Picks</CardTitle>
-          <CardDescription>
-            Complete history of your player selections
-          </CardDescription>
+          <CardTitle>{t("allPicks")}</CardTitle>
+          <CardDescription>{t("allPicksDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Player</TableHead>
-                <TableHead className="hidden sm:table-cell">Team</TableHead>
+                <TableHead>{t("date")}</TableHead>
+                <TableHead>{t("player")}</TableHead>
+                <TableHead className="hidden sm:table-cell">{t("team")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {history.map((pick, index) => (
                 <TableRow key={index}>
                   <TableCell className="font-medium whitespace-nowrap">
-                    {new Date(pick.date).toLocaleDateString("en-US", {
+                    {new Date(pick.date).toLocaleDateString(locale, {
                       month: "short",
                       day: "numeric",
                     })}
