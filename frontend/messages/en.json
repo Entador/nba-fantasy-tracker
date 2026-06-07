@@ -58,6 +58,7 @@
     "noGamesTitle": "No games scheduled",
     "noGamesTonight": "Check back later for tonight's games",
     "noGamesDate": "No games scheduled for this date",
+    "nextDayWithGames": "Next day with games",
     "errorTitle": "Error loading players",
     "reload": "Reload Page",
     "noMatch": "No players match filters"

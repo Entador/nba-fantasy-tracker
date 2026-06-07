@@ -58,6 +58,7 @@
     "noGamesTitle": "Aucun match prévu",
     "noGamesTonight": "Revenez plus tard pour les matchs de ce soir",
     "noGamesDate": "Aucun match prévu à cette date",
+    "nextDayWithGames": "Prochain jour avec des matchs",
     "errorTitle": "Erreur lors du chargement des joueurs",
     "reload": "Recharger la page",
     "noMatch": "Aucun joueur ne correspond aux filtres"

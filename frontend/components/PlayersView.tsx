@@ -36,6 +36,7 @@ import {
   formatInjuryUpdateTime,
   getDeadlineForDate,
   getGamesForDate,
+  getNextDateWithGames,
   getPlayersForDate,
 } from "@/lib/core/domain/snapshot";
 import { usePicks } from "@/lib/core/hooks/usePicks";
@@ -315,6 +316,12 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
 
   const totalCount = !loading && isHydrated ? players.length : null;
 
+  // Next date that has games scheduled (used in empty state)
+  const nextDateWithGames = useMemo(() => {
+    if (!snapshot || players.length > 0) return null;
+    return getNextDateWithGames(snapshot, currentDate);
+  }, [snapshot, players.length, currentDate]);
+
   // Convert backend games to filter format
   const gamesForFilter = useMemo(() => formatGamesForFilter(games), [games]);
 
@@ -460,6 +467,14 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
                 ? t("noGamesTonight")
                 : t("noGamesDate")}
             </p>
+            {nextDateWithGames && (
+              <Link href={`/?date=${nextDateWithGames}`} className="mt-6">
+                <Button size="lg" className="gap-2">
+                  {t("nextDayWithGames")}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       )}

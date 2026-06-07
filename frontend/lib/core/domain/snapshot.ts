@@ -156,3 +156,17 @@ export function getPlayersForDate(
 export function getGamesForDate(snapshot: SnapshotData, targetDate: string) {
   return snapshot.games.filter((g) => g.game_date === targetDate);
 }
+
+/**
+ * Find the next date after `fromDate` that has at least one game scheduled.
+ * Returns null if no such date exists in the snapshot.
+ */
+export function getNextDateWithGames(
+  snapshot: SnapshotData,
+  fromDate: string
+): string | null {
+  const dates = [
+    ...new Set(snapshot.games.map((g) => g.game_date)),
+  ].sort();
+  return dates.find((d) => d > fromDate) ?? null;
+}
