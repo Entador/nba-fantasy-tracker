@@ -36,11 +36,11 @@ beforeEach(() => {
 describe('usePicks', () => {
   it('reflects a newly created pick after the round-trip', async () => {
     vi.mocked(getPicks).mockResolvedValueOnce(empty).mockResolvedValueOnce({
-      picks: [{ id: 1, player_id: 42, game_date: '2026-05-28', picked_at: '2026-05-28T18:00:00Z' }],
+      picks: [{ id: 1, player_id: 42, game_date: '2026-05-28', picked_at: '2026-05-28T18:00:00Z', fantasy_score: null }],
       locks: [],
     });
     vi.mocked(createPick).mockResolvedValueOnce({
-      id: 1, player_id: 42, game_date: '2026-05-28', picked_at: '2026-05-28T18:00:00Z',
+      id: 1, player_id: 42, game_date: '2026-05-28', picked_at: '2026-05-28T18:00:00Z', fantasy_score: null,
     });
 
     const { result } = renderHook(() => usePicks(), { wrapper });
@@ -53,13 +53,13 @@ describe('usePicks', () => {
 
     expect(createPick).toHaveBeenCalledWith(42, '2026-05-28');
     expect(result.current.picks).toEqual([
-      { id: 1, playerId: 42, date: '2026-05-28', isSkipped: false },
+      { id: 1, playerId: 42, date: '2026-05-28', isSkipped: false, fantasyScore: null },
     ]);
   });
 
   it('removes a pick after clearPick resolves', async () => {
     const seeded: PicksResponse = {
-      picks: [{ id: 7, player_id: 99, game_date: '2026-05-28', picked_at: null }],
+      picks: [{ id: 7, player_id: 99, game_date: '2026-05-28', picked_at: null, fantasy_score: null }],
       locks: [],
     };
     vi.mocked(getPicks).mockResolvedValueOnce(seeded).mockResolvedValueOnce(empty);

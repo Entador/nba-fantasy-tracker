@@ -14,6 +14,7 @@ export interface Pick {
   playerId: number; // -1 = a deliberately skipped night (see isSkipped)
   date: string; // YYYY-MM-DD format
   isSkipped?: boolean; // true if the night was intentionally skipped (no pick made)
+  fantasyScore?: number | null;
 }
 
 type Eligibility = {

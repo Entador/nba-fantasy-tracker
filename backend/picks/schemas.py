@@ -36,12 +36,14 @@ class PickRead(ORMModel):
     """A stored pick. Owner is implicit (the caller), so it is never exposed.
 
     player_id is None for a skipped night.
+    fantasy_score is None when the game hasn't been played yet or for skipped nights.
     """
 
     id: int
     player_id: int | None
     game_date: date
     picked_at: datetime | None
+    fantasy_score: int | None = None
 
 
 class PlayerLock(BaseModel):

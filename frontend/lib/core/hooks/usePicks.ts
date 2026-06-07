@@ -20,6 +20,7 @@ function toPick(bp: PicksResponse['picks'][number]): Pick {
     playerId: bp.player_id ?? -1,
     date: bp.game_date,
     isSkipped: bp.player_id === null,
+    fantasyScore: bp.fantasy_score,
   };
 }
 
@@ -31,7 +32,7 @@ function toPick(bp: PicksResponse['picks'][number]): Pick {
 function upsert(data: PicksResponse, playerId: number | null, date: string): PicksResponse {
   const others = data.picks.filter((p) => p.game_date !== date);
   return {
-    picks: [{ id: -1, player_id: playerId, game_date: date, picked_at: null }, ...others],
+    picks: [{ id: -1, player_id: playerId, game_date: date, picked_at: null, fantasy_score: null }, ...others],
     locks: data.locks,
   };
 }

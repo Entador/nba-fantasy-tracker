@@ -105,7 +105,20 @@
     "allPicksDesc": "Complete history of your player selections",
     "date": "Date",
     "player": "Player",
-    "team": "Team"
+    "team": "Team",
+    "score": "Score",
+    "statsButton": "Statistics",
+    "statsTitle": "Season Statistics",
+    "avgScore": "Average",
+    "bestScore": "Best",
+    "worstScore": "Worst",
+    "scoredPicks": "Scored picks",
+    "above40": "≥ 40 pts",
+    "ofPicks": "of picks",
+    "timelineTitle": "Score over time",
+    "distributionTitle": "Score distribution",
+    "pts": "{score} pts",
+    "picksCount": "{count, plural, one {# pick} other {# picks}}"
   },
   "Import": {
     "title": "Import Historical Picks",

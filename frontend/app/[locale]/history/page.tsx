@@ -1,7 +1,14 @@
 "use client";
 
+import { HistoryStats } from "@/components/HistoryStats";
 import ImportPicks from "@/components/ImportPicks";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Card,
   CardContent,
@@ -25,6 +32,7 @@ import { getForgottenDates, type Pick } from "@/lib/core/domain/picks";
 import {
   AlertCircle,
   AlertTriangle,
+  BarChart2,
   Calendar,
   Loader2,
   Upload,
@@ -49,6 +57,7 @@ export default function HistoryPage() {
   const { data: snapshot } = useSnapshot();
 
   const [showImport, setShowImport] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   // Player names (to label picks, which only carry player_id), cached via SWR
   const {
@@ -194,14 +203,19 @@ export default function HistoryPage() {
             {t("total", { count: history.length })}
           </p>
         </div>
-        <Button
-          onClick={() => setShowImport(true)}
-          variant="outline"
-          className="shrink-0"
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          {t("importHistory")}
-        </Button>
+        <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
+          <Button variant="outline" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            {t("importHistory")}
+          </Button>
+          <button
+            onClick={() => setShowStats(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-full border border-input hover:bg-accent transition-colors leading-none"
+          >
+            <BarChart2 className="h-3 w-3" />
+            {t("statsButton")}
+          </button>
+        </div>
       </div>
 
       {/* Forgotten dates section */}
@@ -281,6 +295,7 @@ export default function HistoryPage() {
                 <TableHead>{t("date")}</TableHead>
                 <TableHead>{t("player")}</TableHead>
                 <TableHead className="hidden sm:table-cell">{t("team")}</TableHead>
+                <TableHead className="text-right">{t("score")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -303,12 +318,31 @@ export default function HistoryPage() {
                   <TableCell className="hidden sm:table-cell text-muted-foreground">
                     {pick.team || "—"}
                   </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {pick.fantasyScore != null ? (
+                      <span className={pick.fantasyScore >= 0 ? "text-foreground" : "text-destructive"}>
+                        {pick.fantasyScore}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Stats dialog */}
+      <Dialog open={showStats} onOpenChange={setShowStats}>
+        <DialogContent className="w-[95vw] sm:w-[70vw] max-w-none max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("statsTitle")}</DialogTitle>
+          </DialogHeader>
+          <HistoryStats picks={history} />
+        </DialogContent>
+      </Dialog>
 
       {/* Import modal */}
       {showImport && (

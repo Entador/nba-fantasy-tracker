@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from models import AnonIdentity, Owner, Pick, Player, User
+from models import AnonIdentity, FantasyScore, Game, Owner, Pick, Player, User
 from picks.schemas import PickRead, PlayerLock
 from players.service import get_playoff_start_date
 
@@ -63,15 +63,27 @@ def get_or_create_owner_for_anon_identity(db: Session, identity: AnonIdentity) -
     return owner
 
 
-def list_picks(db: Session, owner: Owner) -> list[Pick]:
+def list_picks(db: Session, owner: Owner) -> list[PickRead]:
+    # Correlate the game subquery to Pick so it returns the game id on the pick's date.
+    game_on_date = (
+        db.query(Game.id)
+        .filter(Game.game_date == Pick.game_date)
+        .correlate(Pick)
+        .scalar_subquery()
+    )
     rows = (
-        db.query(Pick, Player.nba_player_id)
-        .outerjoin(Player, Pick.player_id == Player.id)  # outer: skips have no player
+        db.query(Pick, Player.nba_player_id, FantasyScore.fantasy_score)
+        .outerjoin(Player, Pick.player_id == Player.id)
+        .outerjoin(
+            FantasyScore,
+            (FantasyScore.player_id == Pick.player_id)
+            & FantasyScore.game_id.in_(game_on_date),
+        )
         .filter(Pick.owner_id == owner.id)
         .order_by(Pick.game_date.desc())
         .all()
     )
-    return [_to_read(pick, nba_player_id) for pick, nba_player_id in rows]
+    return [_to_read(pick, nba_player_id, fantasy_score) for pick, nba_player_id, fantasy_score in rows]
 
 
 def compute_locks(db: Session, owner: Owner) -> list[PlayerLock]:
@@ -211,13 +223,14 @@ def create_picks_batch(
     return imported, skipped
 
 
-def _to_read(pick: Pick, nba_player_id: int | None) -> PickRead:
+def _to_read(pick: Pick, nba_player_id: int | None, fantasy_score: int | None = None) -> PickRead:
     """Serialize a Pick, exposing the NBA player id rather than the internal FK."""
     return PickRead(
         id=pick.id,
         player_id=nba_player_id,
         game_date=pick.game_date,
         picked_at=pick.picked_at,
+        fantasy_score=fantasy_score,
     )
 
 

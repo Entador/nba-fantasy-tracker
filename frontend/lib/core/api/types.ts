@@ -103,6 +103,7 @@ export interface BackendPick {
   player_id: number | null; // null = a deliberately skipped night
   game_date: string; // YYYY-MM-DD
   picked_at: string | null;
+  fantasy_score: number | null;
 }
 
 // A locked window derived server-side from the caller's picks (the 30-day / playoff

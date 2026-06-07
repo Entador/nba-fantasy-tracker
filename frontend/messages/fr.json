@@ -105,7 +105,20 @@
     "allPicksDesc": "Historique complet de vos sélections de joueurs",
     "date": "Date",
     "player": "Joueur",
-    "team": "Équipe"
+    "team": "Équipe",
+    "score": "Score",
+    "statsButton": "Statistiques",
+    "statsTitle": "Statistiques de saison",
+    "avgScore": "Moyenne",
+    "bestScore": "Meilleur",
+    "worstScore": "Pire",
+    "scoredPicks": "Scores enregistrés",
+    "above40": "≥ 40 pts",
+    "ofPicks": "des picks",
+    "timelineTitle": "Évolution du score",
+    "distributionTitle": "Répartition des scores",
+    "pts": "{score} pts",
+    "picksCount": "{count, plural, one {# pick} other {# picks}}"
   },
   "Import": {
     "title": "Importer l'historique des picks",
