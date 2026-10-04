@@ -80,8 +80,9 @@ export interface TeamSnapshot {
   team_id: number;
   abbreviation: string;
   full_name: string;
-  pace: number;
-  def_rating: number;
+  /** null until collected for the current season (e.g. before opening night). */
+  pace: number | null;
+  def_rating: number | null;
 }
 
 export interface SnapshotData {

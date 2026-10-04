@@ -52,6 +52,7 @@ class Team(Base):
     opp_blk = Column(Float, nullable=True)
 
     # Metadata
+    stats_season = Column(String(7), nullable=True)  # season the stats above describe
     stats_updated_at = Column(DateTime(timezone=True), nullable=True)
 
     players = relationship("Player", back_populates="team")

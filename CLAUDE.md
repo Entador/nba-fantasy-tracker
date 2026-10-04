@@ -247,7 +247,7 @@ The app uses a **snapshot-based architecture** optimized for instant navigation:
 
 Core NBA data:
 
-**teams** — `id` (PK), `nba_team_id` (unique), `abbreviation`, `full_name`, record (`wins`/`losses`), tempo/defense (`pace`, `def_rating`), opponent stats (`opp_*`), `stats_updated_at`
+**teams** — `id` (PK), `nba_team_id` (unique), `abbreviation`, `full_name`, record (`wins`/`losses`), tempo/defense (`pace`, `def_rating`), opponent stats (`opp_*`), `stats_season` (migration 0006) + `stats_updated_at`. All stats are NULL until collected for `stats_season`; the snapshot sends NULL (not 0.0) and the client renders `—`.
 
 **players** — `id` (PK), `nba_player_id` (unique), `name`, `team_id` (FK teams), `is_active`, injury fields (`injury_status`, `injury_return_date`, `injury_details`)
 
@@ -360,6 +360,11 @@ daily cron can't add a new season's schedule). The NBA ships 80 games/team — t
 have TBD participants and get inserted later by `daily_update.py` Phase 1, which adds
 any missing current-season game. Injury URL in `ingestion/injuries_nba.py` is
 per-season and needs a yearly bump.
+
+Team stats are season-specific: `daily_update.py` Phase 3 clears any team whose
+`stats_season` isn't current *before* fetching, since the NBA API only returns teams
+that have already played — otherwise opening night mixes last season's pace with
+one-game samples.
 
 ### NBA API Rate Limiting
 

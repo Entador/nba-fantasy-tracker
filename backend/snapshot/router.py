@@ -141,8 +141,11 @@ def get_snapshot(db: Session = Depends(get_db)):
                 'team_id': team.id,
                 'abbreviation': team.abbreviation,
                 'full_name': team.full_name,
-                'pace': team.pace or 0.0,
-                'def_rating': team.def_rating or 0.0,
+                # null, not 0.0, when the stat hasn't been collected for this
+                # season yet — the client renders it as "—" and skips it when
+                # computing gradient ranges.
+                'pace': team.pace,
+                'def_rating': team.def_rating,
             })
 
         # Compute earliest game time per date

@@ -8,8 +8,8 @@ import type {
 export interface EnrichedPlayer extends PlayerSnapshot {
   opponent: string;
   is_home: boolean;
-  opp_pace: number;
-  opp_def_rating: number;
+  opp_pace: number | null;
+  opp_def_rating: number | null;
   is_back_to_back: boolean;
 }
 
@@ -24,6 +24,8 @@ export interface StatRanges {
   defRating: StatRange;
 }
 
+const isNumber = (v: number | null): v is number => v !== null && !isNaN(v);
+
 export function computeStatRanges(teams: TeamSnapshot[]): StatRanges {
   const empty: StatRange = { min: 0, max: 0, median: 0 };
 
@@ -37,8 +39,8 @@ export function computeStatRanges(teams: TeamSnapshot[]): StatRanges {
   };
 
   return {
-    pace: getRange(teams.map((t) => t.pace).filter((v) => v !== null && !isNaN(v))),
-    defRating: getRange(teams.map((t) => t.def_rating).filter((v) => v !== null && !isNaN(v))),
+    pace: getRange(teams.map((t) => t.pace).filter(isNumber)),
+    defRating: getRange(teams.map((t) => t.def_rating).filter(isNumber)),
   };
 }
 

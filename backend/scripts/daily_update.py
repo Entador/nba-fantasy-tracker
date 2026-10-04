@@ -32,7 +32,7 @@ from functools import wraps
 
 import pandas as pd
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, or_
 from nba_api.stats.static import teams
 from datetime import date
 
@@ -493,6 +493,44 @@ def populate_fantasy_scores(db: Session, dry_run: bool = False) -> tuple[int, in
     return games_processed, scores_added, len(games_failed)
 
 
+# Season-specific team stats, cleared when the season rolls over.
+TEAM_STAT_FIELDS = (
+    "wins", "losses", "pace", "def_rating",
+    "opp_ppg", "opp_rpg", "opp_apg", "opp_efg_pct", "opp_tov", "opp_stl", "opp_blk",
+)
+
+
+def clear_stale_team_stats(db: Session, season: str, dry_run: bool = False) -> int:
+    """Blank out team stats collected for an earlier season.
+
+    The NBA API only returns teams that have already played, so without this a
+    new season opens with last season's pace and records sitting next to the
+    handful of teams that have played — two seasons mixed in one table with
+    nothing marking which is which. Cleared stats render as "—" until the new
+    season's numbers arrive.
+
+    Runs before the fetch, so stale data is gone even if the fetch fails.
+    """
+    stale = (
+        db.query(Team)
+        .filter(or_(Team.stats_season.is_(None), Team.stats_season != season))
+        .all()
+    )
+    if not stale:
+        return 0
+
+    print(f"Clearing stats for {len(stale)} teams not yet collected for {season}")
+    if not dry_run:
+        for team in stale:
+            for field in TEAM_STAT_FIELDS:
+                setattr(team, field, None)
+            team.stats_season = season
+            team.stats_updated_at = None
+        db.commit()
+
+    return len(stale)
+
+
 def update_team_stats(db: Session, dry_run: bool = False) -> int:
     """
     Update team defensive stats from NBA API.
@@ -506,6 +544,9 @@ def update_team_stats(db: Session, dry_run: bool = False) -> int:
 
     season = NBAClient._get_current_season()
     print(f"Season: {season}")
+
+    clear_stale_team_stats(db, season, dry_run=dry_run)
+
     print("Fetching team stats from NBA API...")
 
     @retry_on_timeout(max_retries=3, base_delay=10.0)
@@ -549,6 +590,7 @@ def update_team_stats(db: Session, dry_run: bool = False) -> int:
             team.opp_tov = stats['opp_tov']
             team.opp_stl = stats['opp_stl']
             team.opp_blk = stats['opp_blk']
+            team.stats_season = season
             team.stats_updated_at = datetime.now(timezone.utc)
 
         updated_count += 1
