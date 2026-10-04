@@ -122,6 +122,7 @@ backend/
 │   └── router.py           # GET /api/snapshot  (imports players.service)
 ├── core/                   # Shared, cross-domain logic
 │   ├── fantasy.py          # calculate_fantasy_score()
+│   ├── season.py           # current_season(), season_of_game_id(), is_pickable/is_playoffs
 │   └── cache.py            # in-memory app_cache (schedule/teams/players)
 ├── ingestion/              # NBA data fetching (used by scripts, not request path)
 │   ├── client.py           # NBAClient — nba_api wrapper
@@ -250,7 +251,7 @@ Core NBA data:
 
 **players** — `id` (PK), `nba_player_id` (unique), `name`, `team_id` (FK teams), `is_active`, injury fields (`injury_status`, `injury_return_date`, `injury_details`)
 
-**games** — team-vs-team schedule rows: `id` (PK), `nba_game_id` (unique), `home_team_id`/`away_team_id` (FK teams), `game_date`, `status` (scheduled|live|final), `home_score`/`away_score`, `start_time_utc`
+**games** — team-vs-team schedule rows: `id` (PK), `nba_game_id` (unique), `season` (migration 0005; `"2026-27"`, indexed), `home_team_id`/`away_team_id` (FK teams), `game_date`, `status` (scheduled|live|final), `home_score`/`away_score`, `start_time_utc`
 
 **fantasy_scores** — per-player-per-game results: `id` (PK), `player_id` (FK), `game_id` (FK), `fantasy_score`, `minutes` (0/NULL = DNP). Unique on `(player_id, game_id)`.
 
@@ -339,6 +340,26 @@ The backend pre-loads static/semi-static data on startup (`core/cache.py`):
 - **Cached**: Game schedules, teams, player rosters (reduces DB queries)
 - **Not cached**: Fantasy scores and averages (queried from DB as they change frequently)
 - Cache is refreshed by redeploying after daily updates
+- **Current season only** — past seasons stay in the DB for pick history
+
+### Seasons
+
+`core/season.py` owns season/game-type logic — never test `nba_game_id.startswith()`
+directly. `current_season()` rolls over Oct 1; `season_of_game_id()` reads it from the
+ID (digits 4-5 = start year). `is_pickable()` gates imports: `002` regular, `004`
+playoffs, `005` play-in — excluding `001` pre-season, `003` All-Star, `006` NBA Cup
+final. `is_playoffs()` is `004` only.
+
+Season-scoped reads (`Game.season == current_season()`): cache load,
+`batch_calculate_averages`, `get_playoff_start_date`, player detail. Unscoped, a past
+bracket keeps the app in playoff mode and disables the 30-day rule. `list_picks` stays
+unscoped — history spans seasons.
+
+**New season**: `populate_db.py --games-only` then `--rosters-only` (idempotent; the
+daily cron can't add a new season's schedule). The NBA ships 80 games/team — the rest
+have TBD participants and get inserted later by `daily_update.py` Phase 1, which adds
+any missing current-season game. Injury URL in `ingestion/injuries_nba.py` is
+per-season and needs a yearly bump.
 
 ### NBA API Rate Limiting
 

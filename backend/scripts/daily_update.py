@@ -32,7 +32,7 @@ from functools import wraps
 
 import pandas as pd
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from nba_api.stats.static import teams
 from datetime import date
 
@@ -42,6 +42,7 @@ from models.database import SessionLocal
 from models import Team, Player, Game, FantasyScore, AppMetadata
 from ingestion.client import NBAClient
 from core.fantasy import calculate_fantasy_score
+from core.season import REGULAR_SEASON, current_season, is_pickable, season_of_game_id
 from ingestion.injuries import update_player_injuries
 from ingestion.injuries_nba import update_player_injuries_nba
 
@@ -121,9 +122,7 @@ def update_game_statuses(db: Session, dry_run: bool = False) -> int:
     for _, row in games_df.iterrows():
         game_id = row["gameId"]
 
-        # Skip non-regular-season games
-        # "001..." = pre-season, "003..." = All-Star, "004..." = playoffs
-        if game_id.startswith("001") or game_id.startswith("003"):
+        if not is_pickable(game_id):
             continue
 
         game_status = row.get("gameStatus", 1)
@@ -168,8 +167,12 @@ def update_game_statuses(db: Session, dry_run: bool = False) -> int:
 
     print(f"Loaded {len(schedule_data)} games from NBA schedule")
 
-    # Update only existing games in database
-    games_to_update = db.query(Game).filter(Game.status != "final").all()
+    # Update only existing games in database, for this season only
+    games_to_update = (
+        db.query(Game)
+        .filter(Game.season == season, Game.status != "final")
+        .all()
+    )
     print(f"Found {len(games_to_update)} non-final games in database")
 
     updated_count = 0
@@ -220,56 +223,57 @@ def update_game_statuses(db: Session, dry_run: bool = False) -> int:
     if not dry_run:
         db.commit()
 
-    # Insert new playoff/play-in games not yet in the database
-    # "004..." = playoffs, "005..." = play-in tournament
-    playoff_added = 0
-    playoff_game_ids = {g_id for g_id in schedule_data if g_id.startswith("004") or g_id.startswith("005")}
-    if playoff_game_ids:
-        existing_game_ids = {
-            g.nba_game_id for g in db.query(Game.nba_game_id)
-            .filter(Game.nba_game_id.in_(playoff_game_ids))
-            .all()
-        }
-        new_playoff_ids = playoff_game_ids - existing_game_ids
+    # Insert games the NBA has added since the last run. Not just playoffs and
+    # play-in: the schedule ships with ~2 games per team left open for the NBA
+    # Cup, and the Cup knockout slots start with TBD participants, so new
+    # regular-season games appear mid-season too. Games whose teams aren't known
+    # yet are skipped and picked up on a later run.
+    games_added = 0
+    existing_game_ids = {
+        g.nba_game_id for g in db.query(Game.nba_game_id)
+        .filter(Game.nba_game_id.in_(schedule_data.keys()))
+        .all()
+    }
+    new_game_ids = set(schedule_data) - existing_game_ids
 
-        if new_playoff_ids:
-            # Load team map for lookups
-            db_teams = db.query(Team).all()
-            team_map = {t.nba_team_id: t.id for t in db_teams}
+    if new_game_ids:
+        db_teams = db.query(Team).all()
+        team_map = {t.nba_team_id: t.id for t in db_teams}
 
-            print(f"\nFound {len(new_playoff_ids)} new playoff games to add")
-            for game_id in sorted(new_playoff_ids):
-                info = schedule_data[game_id]
-                home_team_id = team_map.get(info["home_team_nba_id"])
-                away_team_id = team_map.get(info["away_team_nba_id"])
+        print(f"\nFound {len(new_game_ids)} new games in the NBA schedule")
+        for game_id in sorted(new_game_ids):
+            info = schedule_data[game_id]
+            home_team_id = team_map.get(info["home_team_nba_id"])
+            away_team_id = team_map.get(info["away_team_nba_id"])
 
-                if not home_team_id or not away_team_id:
-                    print(f"  [skip] {game_id} - unknown team IDs")
-                    continue
-
-                if not dry_run:
-                    db.add(Game(
-                        nba_game_id=game_id,
-                        game_date=info["game_date"],
-                        home_team_id=home_team_id,
-                        away_team_id=away_team_id,
-                        status=info["status"],
-                        home_score=info["home_score"],
-                        away_score=info["away_score"],
-                        start_time_utc=info["start_time_utc"],
-                    ))
-
-                playoff_added += 1
-                print(f"  [new playoff] {game_id} ({info['game_date']}) -> {info['status']}")
+            if not home_team_id or not away_team_id:
+                print(f"  [skip] {game_id} ({info['game_date']}) - participants not announced yet")
+                continue
 
             if not dry_run:
-                db.commit()
+                db.add(Game(
+                    nba_game_id=game_id,
+                    season=season_of_game_id(game_id),
+                    game_date=info["game_date"],
+                    home_team_id=home_team_id,
+                    away_team_id=away_team_id,
+                    status=info["status"],
+                    home_score=info["home_score"],
+                    away_score=info["away_score"],
+                    start_time_utc=info["start_time_utc"],
+                ))
+
+            games_added += 1
+            print(f"  [new] {game_id} ({info['game_date']}) -> {info['status']}")
+
+        if not dry_run:
+            db.commit()
 
     # Delete scheduled playoff/play-in games no longer in the NBA schedule
     # (e.g. cancelled "Game 5" when a series ends early)
     scheduled_playoff_games = (
         db.query(Game)
-        .filter(Game.status == "scheduled")
+        .filter(Game.season == season, Game.status == "scheduled")
         .filter(Game.nba_game_id.like("004%") | Game.nba_game_id.like("005%"))
         .all()
     )
@@ -288,7 +292,7 @@ def update_game_statuses(db: Session, dry_run: bool = False) -> int:
     final_count = db.query(Game).filter(Game.status == "final").count()
     scheduled_count = db.query(Game).filter(Game.status == "scheduled").count()
 
-    print(f"\nUpdated: {updated_count}, Playoff games added: {playoff_added}, Cancelled removed: {cancelled_count}")
+    print(f"\nUpdated: {updated_count}, Games added: {games_added}, Cancelled removed: {cancelled_count}")
     print(f"Total in DB: {final_count} final, {scheduled_count} scheduled")
 
     return updated_count
@@ -309,7 +313,19 @@ def populate_fantasy_scores(db: Session, dry_run: bool = False) -> tuple[int, in
     print("Phase 2: Populate Fantasy Scores")
     print("=" * 50)
 
-    regular_season_start = date(2025, 10, 22)
+    # Scope to the current season, and to opening night onwards within it, so
+    # finished past seasons are never re-scanned for missing scores.
+    season = current_season()
+    regular_season_start = (
+        db.query(func.min(Game.game_date))
+        .filter(Game.season == season, Game.nba_game_id.startswith(REGULAR_SEASON))
+        .scalar()
+    )
+    if regular_season_start is None:
+        print(f"No {season} regular season games in the database yet")
+        return 0, 0, 0
+
+    print(f"Season: {season} (from {regular_season_start})")
 
     # Pre-load all players for efficient lookup
     players = db.query(Player).all()
@@ -321,6 +337,7 @@ def populate_fantasy_scores(db: Session, dry_run: bool = False) -> tuple[int, in
         db.query(Game)
         .filter(
             and_(
+                Game.season == season,
                 Game.status == "final",
                 Game.game_date >= regular_season_start,
                 ~Game.id.in_(games_with_scores)

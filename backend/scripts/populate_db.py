@@ -22,7 +22,7 @@ Options:
 import sys
 import time
 import argparse
-from datetime import datetime
+from datetime import date, datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(__file__).rsplit("/", 2)[0])
@@ -32,9 +32,27 @@ from nba_api.stats.static import teams as nba_teams
 
 from models.database import SessionLocal, engine, Base
 from models import Team, Player, Game
+from core.season import is_pickable, season_of_game_id
 from ingestion.client import NBAClient
 
 nba_client = NBAClient()
+
+
+def parse_game_date(date_string: str) -> date | None:
+    """Parse the NBA schedule's gameDate, which comes in two shapes.
+
+    ScheduleLeagueV2 returns "10/20/2026 00:00:00"; other endpoints return
+    "2026-10-20". Both are the NBA logical game day (Eastern Time), so late
+    games stay on the correct date.
+    """
+    if not date_string:
+        return None
+    for fmt in ("%m/%d/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(date_string[:10], fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 def parse_utc_datetime(dt_string: str) -> datetime | None:
@@ -176,9 +194,7 @@ def populate_games(
 
     # Filter by date range if provided
     if from_date or to_date:
-        games_df["game_date_parsed"] = games_df["gameDate"].apply(
-            lambda x: datetime.strptime(x[:10], "%Y-%m-%d").date() if x else None
-        )
+        games_df["game_date_parsed"] = games_df["gameDate"].apply(parse_game_date)
         if from_date:
             games_df = games_df[games_df["game_date_parsed"] >= from_date.date()]
         if to_date:
@@ -192,15 +208,12 @@ def populate_games(
     for _, row in games_df.iterrows():
         game_id = row["gameId"]
 
-        # Skip non-regular-season games (All-Star games start with "003")
-        if game_id.startswith("003"):
+        if not is_pickable(game_id):
             continue
 
-        # Parse game date
-        game_date_str = row.get("gameDate", "")
-        if not game_date_str:
+        game_date = parse_game_date(row.get("gameDate", ""))
+        if game_date is None:
             continue
-        game_date = datetime.strptime(game_date_str[:10], "%Y-%m-%d").date()
 
         # Determine game status (1=scheduled, 2=live, 3=final)
         game_status = row.get("gameStatus", 1)
@@ -229,6 +242,14 @@ def populate_games(
             except (ValueError, TypeError):
                 away_score = None
 
+        # NBA Cup knockout slots ship with TBD participants. Skip them until the
+        # teams are known — daily_update.py inserts them once they are.
+        home_team_id = team_map.get(home_team_nba_id)
+        away_team_id = team_map.get(away_team_nba_id)
+        if not home_team_id or not away_team_id:
+            skipped_count += 1
+            continue
+
         existing = db.query(Game).filter(Game.nba_game_id == game_id).first()
 
         if existing:
@@ -254,9 +275,10 @@ def populate_games(
         # Create new game record
         game = Game(
             nba_game_id=game_id,
+            season=season_of_game_id(game_id),
             game_date=game_date,
-            home_team_id=team_map.get(home_team_nba_id),
-            away_team_id=team_map.get(away_team_nba_id),
+            home_team_id=home_team_id,
+            away_team_id=away_team_id,
             status=status,
             home_score=home_score,
             away_score=away_score,

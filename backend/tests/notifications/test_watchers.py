@@ -18,6 +18,7 @@ from models import (
     User,
     UserDevice,
 )
+from core.season import current_season
 from notifications import watchers
 from notifications.notifier import FakeNotifier
 
@@ -146,6 +147,7 @@ def add_game(db, start_utc, game_date=TONIGHT):
     db.add(
         Game(
             nba_game_id=f"002{start_utc.timestamp():.0f}",
+            season=current_season(game_date),
             home_team_id=home.id,
             away_team_id=away.id,
             game_date=game_date,

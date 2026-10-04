@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from models.database import get_db
 from models import AppMetadata
 from core.cache import app_cache
+from core.season import is_playoffs, is_regular_season
 from players.service import batch_calculate_averages, get_playoff_round
 
 import logging
@@ -50,7 +51,7 @@ def get_snapshot(db: Session = Depends(get_db)):
         all_players = [p for p in app_cache.players_by_id.values() if p.is_active]
 
         # Detect current and previous playoff round (needed for per-round stat calculation)
-        _playoff_rounds = {get_playoff_round(g.nba_game_id) for g in all_games if g.nba_game_id.startswith('004')} - {None}
+        _playoff_rounds = {get_playoff_round(g.nba_game_id) for g in all_games if is_playoffs(g.nba_game_id)} - {None}
         current_playoff_round = max(_playoff_rounds) if _playoff_rounds else None
         last_playoff_round = (current_playoff_round - 1) if current_playoff_round and current_playoff_round > 1 else None
 
@@ -153,16 +154,18 @@ def get_snapshot(db: Session = Depends(get_db)):
                 if date_str not in earliest_game_times or time_iso < earliest_game_times[date_str]:
                     earliest_game_times[date_str] = time_iso
 
-        # Playoff period: all regular season games are done, or next scheduled games are playoffs
+        # Playoff period: all regular season games are done, or next scheduled games are playoffs.
+        # all_games is this season only (the cache scopes it), so last season's
+        # bracket can't pin this to True.
         today = date.today()
-        regular_season_games = [g for g in all_games if g.nba_game_id.startswith('002')]
+        regular_season_games = [g for g in all_games if is_regular_season(g.nba_game_id)]
         upcoming_games = [g for g in all_games if g.game_date >= today]
         is_playoff_period = (
             (bool(regular_season_games) and all(g.game_date < today for g in regular_season_games))
-            or any(g.nba_game_id.startswith('004') for g in upcoming_games)
+            or any(is_playoffs(g.nba_game_id) for g in upcoming_games)
         )
 
-        playoff_games = [g for g in all_games if g.nba_game_id.startswith('004')]
+        playoff_games = [g for g in all_games if is_playoffs(g.nba_game_id)]
         playoff_start_date = (
             min(g.game_date for g in playoff_games).isoformat() if playoff_games else None
         )

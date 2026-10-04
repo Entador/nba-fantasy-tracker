@@ -4,6 +4,8 @@ from datetime import datetime
 
 from nba_api.stats.endpoints import playergamelog, leaguedashteamstats, boxscoretraditionalv3, scheduleleaguev2, commonteamroster
 
+from core.season import current_season
+
 
 class NBAClient:
     def __init__(self, rate_limit_delay=0.6, max_retries=3):
@@ -24,11 +26,8 @@ class NBAClient:
 
     @staticmethod
     def _get_current_season() -> str:
-        now = datetime.now()
-        year, month = now.year, now.month
-        if month >= 10:
-            return f"{year}-{str(year + 1)[-2:]}"
-        return f"{year - 1}-{str(year)[-2:]}"
+        """The season to request from the NBA API, e.g. '2026-27'."""
+        return current_season()
 
     @staticmethod
     def _extract_opponent(matchup: str) -> str:

@@ -8,6 +8,7 @@ from sqlalchemy import or_
 from models.database import get_db
 from models import Game, FantasyScore
 from core.cache import app_cache
+from core.season import current_season
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +16,12 @@ router = APIRouter()
 
 
 def _calculate_player_avg_fantasy(db: Session, player_id: int, limit: int = 15) -> float:
-    """Calculate average Fantasy score from recent games where player actually played."""
+    """Average Fantasy score over this season's recent games where the player played."""
     scores = (
         db.query(FantasyScore.fantasy_score)
         .join(Game)
         .filter(
+            Game.season == current_season(),
             FantasyScore.player_id == player_id,
             FantasyScore.fantasy_score.isnot(None),
             FantasyScore.minutes > 0
@@ -97,6 +99,7 @@ def get_player_stats(player_id: int, db: Session = Depends(get_db)):
                 (FantasyScore.game_id == Game.id) & (FantasyScore.player_id == player.id)
             )
             .filter(
+                Game.season == current_season(),
                 or_(Game.home_team_id == player.team_id, Game.away_team_id == player.team_id),
                 Game.status == 'final'
             )

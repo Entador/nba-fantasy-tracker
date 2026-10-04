@@ -4,10 +4,17 @@ from datetime import date, timedelta
 
 import pytest
 
+from core.season import current_season
 from models import Game, Player
 
-D = date(2026, 1, 15)
-PLAYOFF_START = date(2026, 4, 18)
+# Anchored to whatever season is current, since eligibility reads are scoped to
+# it — hardcoded calendar dates would silently fall out of season each October.
+SEASON = current_season()
+_START_YEAR = int(SEASON[:4])
+
+D = date(_START_YEAR + 1, 1, 15)
+PLAYOFF_START = date(_START_YEAR + 1, 4, 18)
+PLAYOFF_GAME_ID = f"004{_START_YEAR % 100:02d}00101"
 
 
 @pytest.fixture
@@ -23,7 +30,9 @@ def players(db_session):
 @pytest.fixture
 def playoffs(db_session):
     """Schedule a playoff game so get_playoff_start_date() returns PLAYOFF_START."""
-    db_session.add(Game(nba_game_id="0042400101", game_date=PLAYOFF_START))
+    db_session.add(
+        Game(nba_game_id=PLAYOFF_GAME_ID, season=SEASON, game_date=PLAYOFF_START)
+    )
     db_session.commit()
     return PLAYOFF_START
 
@@ -117,6 +126,34 @@ def test_regular_season_pick_does_not_block_playoff_pick(make_client, players, p
     # A pick from before the playoffs must not count against the playoff run.
     assert pick(c, players[0], PLAYOFF_START - timedelta(days=3)).status_code == 201
     assert pick(c, players[0], PLAYOFF_START).status_code == 201
+
+
+def test_past_season_playoffs_do_not_trigger_playoff_rules(make_client, players, db_session):
+    """A finished season's bracket must not keep eligibility in playoff mode.
+
+    Without season scoping, last season's April games made every pick lock its
+    player for the whole "run" and bypassed the 30-day window entirely.
+    """
+    last_season_start_year = _START_YEAR - 1
+    db_session.add(
+        Game(
+            nba_game_id=f"004{last_season_start_year % 100:02d}00101",
+            season=f"{last_season_start_year}-{(last_season_start_year + 1) % 100:02d}",
+            game_date=date(last_season_start_year + 1, 4, 18),
+        )
+    )
+    db_session.commit()
+
+    c = make_client()
+    assert pick(c, players[0], D).status_code == 201
+    assert pick(c, players[0], D + timedelta(days=10)).status_code == 409  # 30-day rule
+    assert pick(c, players[0], D + timedelta(days=31)).status_code == 201  # window expired
+
+    # Dated 30-day windows, not open-ended playoff locks (one per pick).
+    assert sorted((lock["locked_from"], lock["available_on"]) for lock in get_locks(c)) == [
+        (D.isoformat(), (D + timedelta(days=30)).isoformat()),
+        ((D + timedelta(days=31)).isoformat(), (D + timedelta(days=61)).isoformat()),
+    ]
 
 
 # --- Batch import: authoritative, bypasses eligibility, overwrites clashes ---

@@ -76,6 +76,7 @@ class Game(Base):
     __tablename__ = "games"
     id = Column(Integer, primary_key=True, index=True)
     nba_game_id = Column(String, unique=True, nullable=False, index=True)
+    season = Column(String(7), nullable=False, index=True)  # "2026-27"; see core.season
     home_team_id = Column(Integer, ForeignKey("teams.id"))
     away_team_id = Column(Integer, ForeignKey("teams.id"))
     game_date = Column(Date, nullable=False, index=True)

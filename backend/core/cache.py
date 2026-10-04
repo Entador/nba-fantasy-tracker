@@ -11,6 +11,7 @@ import logging
 from typing import Dict, List, Optional
 from datetime import date, datetime, timezone
 from models import Player, Team, Game
+from core.season import current_season
 from sqlalchemy.orm import joinedload
 from sqlalchemy import text
 
@@ -46,9 +47,14 @@ class AppCache:
         self.teams_by_id = {team.id: team for team in teams}
         logger.info("Loaded %d teams", len(teams))
 
-        # Load all games with relationships eager-loaded
+        # Load this season's games with relationships eager-loaded. Past seasons
+        # stay in the DB (pick history needs them) but never reach the snapshot:
+        # they would double its size and keep playoff detection stuck on last
+        # season's bracket.
+        season = current_season()
         games = (
             db.query(Game)
+            .filter(Game.season == season)
             .options(joinedload(Game.home_team), joinedload(Game.away_team))
             .all()
         )
@@ -61,7 +67,10 @@ class AppCache:
                 self.games_by_date[game_date] = []
             self.games_by_date[game_date].append(game)
 
-        logger.info("Loaded %d games across %d dates", len(games), len(self.games_by_date))
+        logger.info(
+            "Loaded %d games across %d dates (season %s)",
+            len(games), len(self.games_by_date), season,
+        )
 
         # Load all players with team relationship eager-loaded
         players = (

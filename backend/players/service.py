@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from models import Game, FantasyScore
+from core.season import PLAYOFFS, current_season, is_playoffs
 
 
 def get_playoff_round(nba_game_id: str) -> int | None:
@@ -20,15 +21,21 @@ def get_playoff_round(nba_game_id: str) -> int | None:
 
 
 def get_playoff_start_date(db: Session) -> date | None:
-    """Earliest playoff game date, or None if no playoff game is scheduled yet.
+    """Earliest playoff game date *this season*, or None if none is scheduled yet.
 
-    NBA playoff game IDs start with '004' (regular season is '002'). This mirrors
-    the playoff_start_date the snapshot endpoint exposes, so pick eligibility and
-    the UI agree on when playoff rules take over from the 30-day window.
+    Scoped to the current season: a past season's bracket would otherwise keep
+    returning its April date forever, so pick eligibility would stay in
+    once-per-playoffs mode and silently bypass the 30-day window all year.
+
+    Mirrors the playoff_start_date the snapshot endpoint exposes, so pick
+    eligibility and the UI agree on when playoff rules take over.
     """
     row = (
         db.query(Game.game_date)
-        .filter(Game.nba_game_id.startswith("004"))
+        .filter(
+            Game.season == current_season(),
+            Game.nba_game_id.startswith(PLAYOFFS),
+        )
         .order_by(Game.game_date.asc())
         .first()
     )
@@ -43,6 +50,8 @@ def batch_calculate_averages(
 ) -> dict[int, dict]:
     """
     Calculate Fantasy averages for multiple players in a single query.
+
+    Only the current season's games count — a new season starts from scratch.
 
     Returns dict: {player_id: {
         'avg_fantasy': all games this season,
@@ -71,6 +80,7 @@ def batch_calculate_averages(
         )
         .join(Game, FantasyScore.game_id == Game.id)
         .filter(
+            Game.season == current_season(),
             FantasyScore.player_id.in_(player_ids),
             FantasyScore.fantasy_score.isnot(None),
             FantasyScore.minutes > 0
@@ -106,7 +116,7 @@ def batch_calculate_averages(
         avg_fantasy_week_ago = sum(before_14d) / len(before_14d) if before_14d else 0.0
 
         # avg_fantasy_playoffs: all playoff games
-        playoff_scores = [fantasy for fantasy, _, gid in scores if gid.startswith('004')]
+        playoff_scores = [fantasy for fantasy, _, gid in scores if is_playoffs(gid)]
         avg_fantasy_playoffs = sum(playoff_scores) / len(playoff_scores) if playoff_scores else None
 
         # avg_fantasy_current_round: games in the current playoff round
