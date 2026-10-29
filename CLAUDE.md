@@ -294,6 +294,9 @@ poetry run python scripts/daily_update.py --injuries-only
 
 # Preview changes without committing
 poetry run python scripts/daily_update.py --dry-run
+
+# Bypass PROXY_URL and call the NBA API directly (local runs from a home IP)
+poetry run python scripts/daily_update.py --no-proxy
 ```
 
 **Important**: The script uses `nba_api` and is subject to rate limits. It includes retry logic with exponential backoff for timeout errors.

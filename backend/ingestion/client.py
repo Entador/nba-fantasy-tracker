@@ -8,8 +8,10 @@ from core.season import current_season
 
 
 class NBAClient:
-    def __init__(self, rate_limit_delay=0.6, max_retries=3):
-        self.proxy_url = os.getenv('PROXY_URL')
+    def __init__(self, rate_limit_delay=0.6, max_retries=3, use_proxy=True):
+        # Deployed runs need the proxy (the NBA API blocks datacenter IPs);
+        # local runs can go direct with use_proxy=False.
+        self.proxy_url = os.getenv('PROXY_URL') if use_proxy else None
         self.rate_limit_delay = rate_limit_delay
         self.max_retries = max_retries
 

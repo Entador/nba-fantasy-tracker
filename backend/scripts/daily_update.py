@@ -796,7 +796,12 @@ def main():
     parser.add_argument("--injuries-only", action="store_true", help="Only update injury statuses")
     parser.add_argument("--trades-only", action="store_true", help="Only update player trades")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be done without making changes")
+    parser.add_argument("--no-proxy", action="store_true", help="Call the NBA API directly, ignoring PROXY_URL (local runs)")
     args = parser.parse_args()
+
+    if args.no_proxy:
+        global nba_client
+        nba_client = NBAClient(use_proxy=False)
 
     run_all = not any([args.games_only, args.scores_only, args.stats_only, args.injuries_only, args.trades_only])
 
@@ -805,6 +810,8 @@ def main():
     print(f"Started: {datetime.now(timezone.utc).isoformat()}")
     if args.dry_run:
         print("*** DRY RUN MODE - No changes will be made ***")
+    if args.no_proxy:
+        print("*** NO PROXY - calling the NBA API directly ***")
     print("=" * 50)
 
     db = get_db()
