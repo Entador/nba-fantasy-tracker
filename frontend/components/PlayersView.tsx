@@ -354,7 +354,7 @@ export default function PlayersView({ initialDate }: PlayersViewProps) {
                 width={60}
                 height={60}
                 unoptimized
-                className={`w-8 h-8 sm:w-12 sm:h-12 transition-all duration-400 ${
+                className={`w-8 h-8 sm:w-12 sm:h-12 dark:invert dark:hue-rotate-180 transition-all duration-400 ${
                   fadingOut ? "opacity-0 scale-0" : "opacity-100 scale-100"
                 }`}
               />
