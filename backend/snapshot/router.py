@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from models.database import get_db
 from models import AppMetadata
 from core.cache import app_cache
-from core.season import is_playoffs, is_regular_season
+from core.season import current_season, is_playoffs, is_regular_season
 from players.service import batch_calculate_averages, get_playoff_round
 
 import logging
@@ -135,8 +135,14 @@ def get_snapshot(db: Session = Depends(get_db)):
             })
 
         # Build teams response
+        season = current_season()
         teams_data = []
         for team in all_teams:
+            # Only send stats that describe the current season. Phase 3 of the
+            # daily update clears stale rows on rollover, but until it runs the
+            # table still holds last season's numbers — serving those would
+            # rank tonight's matchups on a season that is already over.
+            stats_are_current = team.stats_season == season
             teams_data.append({
                 'team_id': team.id,
                 'abbreviation': team.abbreviation,
@@ -144,8 +150,8 @@ def get_snapshot(db: Session = Depends(get_db)):
                 # null, not 0.0, when the stat hasn't been collected for this
                 # season yet — the client renders it as "—" and skips it when
                 # computing gradient ranges.
-                'pace': team.pace,
-                'def_rating': team.def_rating,
+                'pace': team.pace if stats_are_current else None,
+                'def_rating': team.def_rating if stats_are_current else None,
             })
 
         # Compute earliest game time per date

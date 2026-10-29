@@ -356,7 +356,10 @@ final. `is_playoffs()` is `004` only.
 Season-scoped reads (`Game.season == current_season()`): cache load,
 `batch_calculate_averages`, `get_playoff_start_date`, player detail. Unscoped, a past
 bracket keeps the app in playoff mode and disables the 30-day rule. `list_picks` stays
-unscoped — history spans seasons.
+unscoped — history spans seasons. The snapshot also gates team stats on
+`Team.stats_season == current_season()` and sends NULL otherwise, so last season's pace
+and defensive rating never reach the client even if the daily update hasn't cleared them
+yet.
 
 **New season**: `populate_db.py --games-only` then `--rosters-only` (idempotent; the
 daily cron can't add a new season's schedule). The NBA ships 80 games/team — the rest
@@ -367,7 +370,8 @@ per-season and needs a yearly bump.
 Team stats are season-specific: `daily_update.py` Phase 3 clears any team whose
 `stats_season` isn't current *before* fetching, since the NBA API only returns teams
 that have already played — otherwise opening night mixes last season's pace with
-one-game samples.
+one-game samples. The snapshot enforces the same rule on read (see above), so a missed
+cron run can't serve stale stats.
 
 ### NBA API Rate Limiting
 
