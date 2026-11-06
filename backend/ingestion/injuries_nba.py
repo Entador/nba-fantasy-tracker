@@ -215,21 +215,33 @@ def _normalize_team_key(pdf_team_name: str) -> str:
     return pdf_team_name.lower().replace(" ", "")
 
 
-_SUFFIX_RE = re.compile(r"(Jr\.|Sr\.|II|III|IV|VI|VII|V)$")
+_SUFFIX_RE = re.compile(r"(Jr\.?|Sr\.?|II|III|IV|VI|VII|V)$")
+
+# Lowercase name particles the PDF concatenates with the surname:
+# "deLarrea" -> "de Larrea". Case-sensitive, so "DeRozan" and
+# "McCullar" are left alone.
+_PARTICLE_RE = re.compile(r"^(de|da|di|van|von|bin)(?=[A-Z])")
 
 
 def _normalize_player_name(pdf_name: str) -> str:
     """
     Convert PDF name format to display format.
-    "Allen,Jarrett"   -> "Jarrett Allen"
-    "MurphyIII,Trey"  -> "Trey Murphy III"
-    "MooreJr.,Wendell"-> "Wendell Moore Jr."
+    "Allen,Jarrett"    -> "Jarrett Allen"
+    "MurphyIII,Trey"   -> "Trey Murphy III"
+    "MooreJr.,Wendell" -> "Wendell Moore Jr."
+    "Udeh,Jr.,Ernest"  -> "Ernest Udeh Jr."
+    "deLarrea,Sergio"  -> "Sergio de Larrea"
     """
-    if "," in pdf_name:
-        last, first = pdf_name.split(",", 1)
-        last = _insert_suffix_space(last)
-        return f"{first} {last}".strip()
-    return pdf_name.strip()
+    if "," not in pdf_name:
+        return pdf_name.strip()
+
+    # Split on the LAST comma: some rows carry an extra one before the
+    # suffix ("Udeh,Jr.,Ernest"), so only the trailing field is the
+    # first name.
+    last, first = pdf_name.rsplit(",", 1)
+    last = _insert_suffix_space(last.replace(",", " "))
+    last = _PARTICLE_RE.sub(r"\1 ", last)
+    return " ".join(f"{first} {last}".split())
 
 
 def _insert_suffix_space(last_name: str) -> str:
@@ -298,11 +310,13 @@ def update_player_injuries_nba(db: Session) -> dict:
     teams = db.query(Team).all()
     skipped_team_names: list[str] = []
     skipped_player_ids: set[int] = set()
+    skipped_player_keys: set[str] = set()
     for team in teams:
         if _normalize_team_key(team.full_name) in not_submitted_teams:
             skipped_team_names.append(team.full_name)
             for player in db.query(Player).filter(Player.team_id == team.id).all():
                 skipped_player_ids.add(player.id)
+                skipped_player_keys.add(normalize_name(player.name))
 
     players = db.query(Player).all()
 
@@ -336,10 +350,14 @@ def update_player_injuries_nba(db: Session) -> dict:
                 player.injury_details = None
                 cleared_count += 1
 
+    # Players on a non-submitted team are deliberately skipped above, so they
+    # are absent from matched_keys without being a name mismatch — don't
+    # report them as not found.
     not_found = [
         inj["name"]
         for inj in injuries
         if normalize_name(inj["name"]) not in matched_keys
+        and normalize_name(inj["name"]) not in skipped_player_keys
     ]
 
     db.commit()
