@@ -307,16 +307,27 @@ def update_player_injuries_nba(db: Session) -> dict:
 
     # Build a set of player IDs whose team has not submitted yet.
     # PDF team names are like "MiamiHeat"; DB full_name is "Miami Heat".
+    #
+    # One report covers several game dates, so a team on a back-to-back can be
+    # NOTYETSUBMITTED for tomorrow while tonight's rows are already filled in.
+    # Treat the team as unsubmitted only when nobody on its roster appears in
+    # the report at all — otherwise we'd throw away tonight's fresh statuses.
     teams = db.query(Team).all()
     skipped_team_names: list[str] = []
     skipped_player_ids: set[int] = set()
     skipped_player_keys: set[str] = set()
     for team in teams:
-        if _normalize_team_key(team.full_name) in not_submitted_teams:
-            skipped_team_names.append(team.full_name)
-            for player in db.query(Player).filter(Player.team_id == team.id).all():
-                skipped_player_ids.add(player.id)
-                skipped_player_keys.add(normalize_name(player.name))
+        if _normalize_team_key(team.full_name) not in not_submitted_teams:
+            continue
+
+        roster = db.query(Player).filter(Player.team_id == team.id).all()
+        if any(normalize_name(player.name) in injury_by_name for player in roster):
+            continue
+
+        skipped_team_names.append(team.full_name)
+        for player in roster:
+            skipped_player_ids.add(player.id)
+            skipped_player_keys.add(normalize_name(player.name))
 
     players = db.query(Player).all()
 
