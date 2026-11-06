@@ -343,6 +343,10 @@ The backend pre-loads static/semi-static data on startup (`core/cache.py`):
 - **Cached**: Game schedules, teams, player rosters (reduces DB queries)
 - **Not cached**: Fantasy scores and averages (queried from DB as they change frequently)
 - Cache is refreshed by redeploying after daily updates
+- **Except injuries**: the snapshot reads `app_metadata.injury_updated_at` (bumped by
+  `daily_update.py` Phase 4) and reloads the three injury columns in place whenever that
+  stamp changes, so a long-running server picks up a new report without a redeploy.
+  `INJURY_TTL_SECONDS` (1 h) is only a backstop for writes that skip the stamp.
 - **Current season only** — past seasons stay in the DB for pick history
 
 ### Seasons

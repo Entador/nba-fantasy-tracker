@@ -44,8 +44,12 @@ def get_snapshot(db: Session = Depends(get_db)):
         for games_list in app_cache.games_by_date.values():
             all_games.extend(games_list)
 
-        # Refresh injury data from DB if stale (TTL: 1 hour)
-        app_cache.refresh_injuries_if_stale(db)
+        # Get injury update timestamp — also the cache-invalidation key for
+        # the injury fields below, so the timestamp we report always describes
+        # the statuses we serve.
+        injury_metadata = db.query(AppMetadata).filter(AppMetadata.key == "injury_updated_at").first()
+        injury_updated_at = injury_metadata.value if injury_metadata else None
+        app_cache.refresh_injuries_if_stale(db, injury_updated_at)
 
         # Get all active players from cache
         all_players = [p for p in app_cache.players_by_id.values() if p.is_active]
@@ -61,10 +65,6 @@ def get_snapshot(db: Session = Depends(get_db)):
 
         # Get all teams from cache
         all_teams = list(app_cache.teams_by_id.values())
-
-        # Get injury update timestamp
-        injury_metadata = db.query(AppMetadata).filter(AppMetadata.key == "injury_updated_at").first()
-        injury_updated_at = injury_metadata.value if injury_metadata else None
 
         # Compute rank delta: rank by season avg now vs. a week ago
         # Both windows use the same pool (players with data in BOTH) so ranks are comparable

@@ -17,6 +17,9 @@ from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
+# Backstop only. The normal trigger is the `injury_updated_at` stamp in
+# app_metadata, which daily_update.py bumps on every injury run; the TTL
+# covers writes that bypass it (a manual UPDATE, say).
 INJURY_TTL_SECONDS = 3600  # 1 hour
 
 
@@ -31,6 +34,7 @@ class AppCache:
         self.players_by_team: Dict[int, List] = {}
         self.loaded = False
         self._injuries_loaded_at: Optional[datetime] = None
+        self._injuries_version: Optional[str] = None
 
     def load_schedule(self, db):
         """
@@ -92,6 +96,9 @@ class AppCache:
 
         self.loaded = True
         self._injuries_loaded_at = datetime.now(timezone.utc)
+        # Record which injury write this roster reflects, so the first
+        # snapshot request doesn't re-read data we just loaded.
+        self._injuries_version = _read_injury_version(db)
         logger.info("Loaded %d players", len(players))
 
     def get_games_for_date(self, target_date: date) -> List:
@@ -188,12 +195,21 @@ class AppCache:
             return [p for p in players if p.is_active]
         return players
 
-    def refresh_injuries_if_stale(self, db) -> bool:
+    def refresh_injuries_if_stale(self, db, db_version: Optional[str] = None) -> bool:
         """
-        Re-fetch injury fields from DB if the TTL has expired.
+        Re-fetch injury fields from DB when the cached copy is out of date.
+
+        Refreshes if the DB's `injury_updated_at` stamp differs from the one
+        this roster was loaded under, or — as a backstop for writes that don't
+        bump the stamp — if INJURY_TTL_SECONDS has elapsed.
 
         Only queries the 3 injury columns — does not reload the full cache.
         Called on each snapshot request; no-ops if data is still fresh.
+
+        Args:
+            db: SQLAlchemy session
+            db_version: current `injury_updated_at` value, if the caller
+                already read it (the snapshot does, for its metadata block)
 
         Returns True if a refresh was performed.
         """
@@ -201,8 +217,15 @@ class AppCache:
             return False
 
         now = datetime.now(timezone.utc)
-        if (self._injuries_loaded_at is not None and
-                (now - self._injuries_loaded_at).total_seconds() < INJURY_TTL_SECONDS):
+        if db_version is None:
+            db_version = _read_injury_version(db)
+
+        version_changed = db_version != self._injuries_version
+        ttl_expired = (
+            self._injuries_loaded_at is None
+            or (now - self._injuries_loaded_at).total_seconds() >= INJURY_TTL_SECONDS
+        )
+        if not version_changed and not ttl_expired:
             return False
 
         rows = db.execute(
@@ -217,6 +240,7 @@ class AppCache:
                 player.injury_details = row.injury_details
 
         self._injuries_loaded_at = now
+        self._injuries_version = db_version
         logger.info("Cache: refreshed injury data for %d players", len(rows))
         return True
 
@@ -229,6 +253,15 @@ class AppCache:
         self.players_by_team = {}
         self.loaded = False
         self._injuries_loaded_at = None
+        self._injuries_version = None
+
+
+def _read_injury_version(db) -> Optional[str]:
+    """Read the `injury_updated_at` stamp that daily_update.py writes."""
+    row = db.execute(
+        text("SELECT value FROM app_metadata WHERE key = 'injury_updated_at'")
+    ).first()
+    return row.value if row else None
 
 
 # Global singleton
