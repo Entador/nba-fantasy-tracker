@@ -21,7 +21,7 @@ from models import Player, Team
 from ingestion.utils import normalize_name
 
 
-NBA_INJURY_PAGE_URL = "https://official.nba.com/nba-injury-report-2025-26-season/"
+NBA_INJURY_PAGE_URL = "https://official.nba.com/nba-injury-report-2026-27-season/"
 PDF_URL_PATTERN = re.compile(
     r"https://ak-static\.cms\.nba\.com/referee/injury/Injury-Report_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})(AM|PM)\.pdf",
     re.IGNORECASE,
